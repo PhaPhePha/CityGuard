@@ -19,20 +19,30 @@ internal object MapColors {
     val Amber = Color(0xFFF0B520)
 }
 
-internal fun IncidentCategory.markerColor(): Color = when (this) {
-    IncidentCategory.TRAFFIC_JAM -> MapColors.Red
-    IncidentCategory.ROAD_BLOCK -> MapColors.Amber
-    IncidentCategory.ROAD_DAMAGE -> Color(0xFF8A687F)
-    IncidentCategory.BROKEN_TRAFFIC_LIGHT -> Color(0xFFB56DCE)
-    IncidentCategory.FALLEN_TREE -> MapColors.Green
-    IncidentCategory.FLOODING -> MapColors.Blue
-}
 
-internal fun IncidentCategory.markerSymbol(): String = when (this) {
-    IncidentCategory.TRAFFIC_JAM -> "🚗"
-    IncidentCategory.ROAD_BLOCK -> "⛔"
-    IncidentCategory.ROAD_DAMAGE -> "⚠"
-    IncidentCategory.BROKEN_TRAFFIC_LIGHT -> "🚦"
-    IncidentCategory.FALLEN_TREE -> "🌳"
-    IncidentCategory.FLOODING -> "💧"
-}
+internal fun IncidentCategory.markerColor(): Color =
+    when (this) {
+        IncidentCategory.TRAFFIC_JAM ->
+            MapColors.Red
+
+        IncidentCategory.FLOODING ->
+            MapColors.Blue
+
+        IncidentCategory.ROAD_DAMAGE ->
+            MapColors.Amber
+
+        IncidentCategory.ROAD_OBSTRUCTION ->
+            MapColors.Green
+    }
+
+internal fun IncidentCategory.markerSymbol(): String =
+    when (this) {
+        IncidentCategory.TRAFFIC_JAM -> "🚗"
+
+        IncidentCategory.FLOODING -> "💧"
+
+        IncidentCategory.ROAD_DAMAGE -> "⚠️"
+
+        IncidentCategory.ROAD_OBSTRUCTION -> "🚧"
+    }
+
