@@ -1,0 +1,54 @@
+package com.hoangpha.cityguard.ui.auth
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.hoangpha.cityguard.data.api.LoginRequest
+import com.hoangpha.cityguard.data.local.SessionManager
+import com.hoangpha.cityguard.data.api.ApiClient
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+
+// Định nghĩa các trạng thái của màn hình Đăng nhập
+sealed class AuthState {
+    object Idle : AuthState()
+    object Loading : AuthState()
+    object Success : AuthState()
+    data class Error(val message: String) : AuthState()
+}
+
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
+    private val sessionManager = SessionManager(application.applicationContext)
+    private val authApi = ApiClient.create(sessionManager)
+
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    val authState: StateFlow<AuthState> = _authState
+
+    fun login(username: String, password: String) {
+        if (username.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Vui lòng nhập đầy đủ thông tin")
+            return
+        }
+
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                val response = authApi.login(LoginRequest(username, password))
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    sessionManager.saveSession(body.token, body.userId)
+                    _authState.value = AuthState.Success
+                } else {
+                    _authState.value = AuthState.Error("Sai tên đăng nhập hoặc mật khẩu")
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Lỗi kết nối mạng. Vui lòng kiểm tra lại!")
+            }
+        }
+    }
+
+    fun resetState() {
+        _authState.value = AuthState.Idle
+    }
+}
