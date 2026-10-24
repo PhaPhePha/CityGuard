@@ -17,7 +17,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cityguard.app.domain.model.ReportSummary
-
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.painterResource
 /** Card mô phỏng Figma. Timestamp, độ tin cậy và ảnh hiện là placeholder cho M1. */
 @Composable
 internal fun ReportSummaryCard(
@@ -45,8 +46,28 @@ internal fun ReportSummaryCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(report.category.markerSymbol(), fontSize = 21.sp)
-                    Spacer(Modifier.width(5.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                report.category.markerColor(),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                id = report.category.markerIconRes()
+                            ),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
                     Text(
                         report.category.displayName,
                         fontWeight = FontWeight.Bold,

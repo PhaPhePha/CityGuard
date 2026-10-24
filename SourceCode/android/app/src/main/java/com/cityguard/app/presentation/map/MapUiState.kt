@@ -7,8 +7,14 @@ sealed interface MapUiState {
     object Loading : MapUiState
 
     data class Success(
-        val reports: List<ReportSummary>
-    ) : MapUiState
+        val reports: List<ReportSummary>,
+        val selectedReportId: String? = null
+    ) : MapUiState {
+        val selectedReport: ReportSummary?
+            get() = reports.firstOrNull{
+                it.id == selectedReportId
+            }
+    }
 
     object Empty : MapUiState
 

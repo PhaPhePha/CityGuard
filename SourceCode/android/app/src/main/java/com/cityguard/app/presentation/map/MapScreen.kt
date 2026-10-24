@@ -21,6 +21,8 @@ import com.cityguard.app.domain.model.IncidentCategory
 import com.cityguard.app.presentation.map.components.*
 import kotlinx.coroutines.launch
 import com.cityguard.app.presentation.map.components.ReportSummaryCard
+import androidx.compose.ui.platform.LocalInspectionMode
+import com.cityguard.app.domain.model.ReportSummary
 /** M1: UI mock. Navigation thật thuộc Main Navigation của nhóm. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,18 +30,43 @@ fun MapScreen(
     uiState: MapUiState,
     modifier: Modifier = Modifier,
     onOpenProfile: (() -> Unit)? = null,
-    onOpenReportDetails: ((String) -> Unit)? = null
+    onOpenReportDetails: ((String) -> Unit)? = null,
+    onSelectReport: (String) -> Unit,
+
+    mapContent: @Composable (
+        List<ReportSummary>,
+        String?,
+        (String) -> Unit
+    ) -> Unit = { reports, selectedId, onClick ->
+        if (LocalInspectionMode.current) {
+            FakeMap(
+                reports = reports,
+                selectedReportId = selectedId,
+                onMarkerClick = onClick,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            ReportMap(
+                reports = reports,
+                selectedReportId = selectedId,
+                onMarkerClick = onClick,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var selectedReportId by rememberSaveable { mutableStateOf<String?>(null) }
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val reports = (uiState as? MapUiState.Success)?.reports.orEmpty()
-    val selectedReport = reports.firstOrNull { it.id == selectedReportId }
+    val successState = uiState as? MapUiState.Success
+
+    val reports = successState?.reports.orEmpty()
+    val selectedReportId = successState?.selectedReportId
+    val selectedReport = successState?.selectedReport
 
     Scaffold(
         modifier = modifier,
@@ -61,24 +88,36 @@ fun MapScreen(
             )
 
             Box(Modifier.fillMaxSize()) {
+
+                // Vẽ bản đồ trước, các nút và card nằm phía trên.
+                mapContent(
+                    reports,
+                    selectedReportId,
+                    { reportId ->
+                        onSelectReport(reportId)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }
+                )
                 when (uiState) {
-                    MapUiState.Loading -> Box(
-                        Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator() }
-                    MapUiState.Empty -> CenterMessage("Chưa có sự cố nào")
-                    is MapUiState.Error -> CenterMessage(uiState.message)
-                    is MapUiState.Success -> {
-                        if (reports.isEmpty()) CenterMessage("Chưa có sự cố nào")
-                        else FakeMap(
-                            reports = reports,
-                            selectedReportId = selectedReportId,
-                            onMarkerClick = { reportId ->
-                                selectedReportId = reportId
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            },
-                            modifier = Modifier.fillMaxSize()
+                    MapUiState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
                         )
+                    }
+
+                    MapUiState.Empty -> {
+                        CenterMessage("Chưa có sự cố nào trong khu vực")
+                    }
+
+                    is MapUiState.Error -> {
+                        CenterMessage(uiState.message)
+                    }
+
+                    is MapUiState.Success -> {
+                        if (reports.isEmpty()) {
+                            CenterMessage("Chưa có sự cố nào trong khu vực")
+                        }
                     }
                 }
 
@@ -155,7 +194,8 @@ private fun HomeMapFigmaPreview() {
         Column(Modifier.fillMaxSize()) {
             MapScreen(
                 uiState = MapUiState.Success(FakeReportData.reports),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onSelectReport = {}
             )
             // Demo riêng cho Preview, KHÔNG thay thế bottom navigation thật.
             Row(
@@ -173,12 +213,12 @@ private fun HomeMapFigmaPreview() {
 
 @Preview(name = "Loading", showBackground = true)
 @Composable
-private fun LoadingPreview() { MaterialTheme { MapScreen(MapUiState.Loading) } }
+private fun LoadingPreview() { MaterialTheme { MapScreen(MapUiState.Loading,onSelectReport = {}) } }
 
 @Preview(name = "Empty", showBackground = true)
 @Composable
-private fun EmptyPreview() { MaterialTheme { MapScreen(MapUiState.Empty) } }
+private fun EmptyPreview() { MaterialTheme { MapScreen(MapUiState.Empty,onSelectReport = {}) } }
 
 @Preview(name = "Error", showBackground = true)
 @Composable
-private fun ErrorPreview() { MaterialTheme { MapScreen(MapUiState.Error("Không thể tải dữ liệu")) } }
+private fun ErrorPreview() { MaterialTheme { MapScreen(MapUiState.Error("Không thể tải dữ liệu"),onSelectReport = {}) } }

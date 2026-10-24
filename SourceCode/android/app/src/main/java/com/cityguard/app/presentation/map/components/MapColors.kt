@@ -1,5 +1,5 @@
 package com.cityguard.app.presentation.map.components
-
+import com.cityguard.app.R
 import androidx.compose.ui.graphics.Color
 import com.cityguard.app.domain.model.IncidentCategory
 
@@ -29,20 +29,26 @@ internal fun IncidentCategory.markerColor(): Color =
             MapColors.Blue
 
         IncidentCategory.ROAD_DAMAGE ->
-            MapColors.Amber
+            Color(0xFF777777)
 
         IncidentCategory.ROAD_OBSTRUCTION ->
-            MapColors.Green
+            MapColors.Amber
     }
 
-internal fun IncidentCategory.markerSymbol(): String =
+
+internal fun IncidentCategory.markerIconRes(): Int =
     when (this) {
-        IncidentCategory.TRAFFIC_JAM -> "🚗"
+        IncidentCategory.TRAFFIC_JAM ->
+            R.drawable._1traffic
 
-        IncidentCategory.FLOODING -> "💧"
+        IncidentCategory.FLOODING ->
+            R.drawable._1flood
 
-        IncidentCategory.ROAD_DAMAGE -> "⚠️"
+        IncidentCategory.ROAD_DAMAGE ->
+            R.drawable._1damage
 
-        IncidentCategory.ROAD_OBSTRUCTION -> "🚧"
+        IncidentCategory.ROAD_OBSTRUCTION ->
+            R.drawable._1obstacle
     }
+
 

@@ -21,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cityguard.app.domain.model.ReportSummary
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 
 /** Chỉ là bản đồ nền minh hoạ của M1: vị trí chấm KHÔNG lấy từ GPS. */
 @Composable
@@ -97,7 +100,7 @@ private fun IncidentMarker(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val color = report.category.markerColor()
+    val markerColor = report.category.markerColor()
     Box(
         modifier = modifier
             .size(width = 48.dp, height = 52.dp)
@@ -108,25 +111,29 @@ private fun IncidentMarker(
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f
-            val cy = size.height * .36f
-            val radius = size.width * .32f
+            val cy = size.height * 0.36f
+            val radius = size.width * 0.32f
             val tail = Path().apply {
-                moveTo(cx - radius * .65f, cy + radius * .5f)
-                lineTo(cx, size.height * .94f)
-                lineTo(cx + radius * .65f, cy + radius * .5f)
+                moveTo(cx - radius * 0.65f, cy + radius * 0.5f)
+                lineTo(cx, size.height * 0.94f)
+                lineTo(cx + radius * 0.65f, cy + radius * 0.5f)
                 close()
             }
-            drawPath(tail, color)
-            drawCircle(color, radius, Offset(cx, cy))
+            drawPath(tail, markerColor)
+            drawCircle(color = markerColor, radius = radius, center=Offset(cx, cy))
             if (selected) {
-                drawCircle(MapColors.Dark, radius + 2.dp.toPx(), Offset(cx, cy), style = Stroke(2.dp.toPx()))
+                drawCircle(Color.Black, radius + 2.dp.toPx(), Offset(cx, cy), style = Stroke(2.dp.toPx()))
             }
         }
-        Text(
-            text = report.category.markerSymbol(),
-            fontSize = 16.sp,
-            modifier = Modifier.padding(top = 7.dp),
-            fontWeight = FontWeight.Bold
+        Image(
+            painter = painterResource(
+                id = report.category.markerIconRes()
+            ),
+            contentDescription = null,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = 9.dp)
+                .size(20.dp)
         )
     }
 }
