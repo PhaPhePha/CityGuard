@@ -45,13 +45,23 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.0")
+
+    // Retrofit (Gọi API)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // DataStore (Lưu Token)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+
+    // Icon
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")// thư viện Icon của Material
 
     // Test
     testImplementation(libs.junit)

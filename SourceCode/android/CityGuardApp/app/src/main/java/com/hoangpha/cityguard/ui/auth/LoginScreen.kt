@@ -1,6 +1,7 @@
 package com.hoangpha.cityguard.ui.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -38,45 +39,67 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
         }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    // Dùng Box thay vì Scaffold để bỏ thanh menu mặc định
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CityGuardYellow)
+            .padding(24.dp)
+    ) {
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(CityGuardYellow)
-                .padding(padding)
-                .padding(24.dp),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Logo / Tiêu đề
             Text("CITYGUARD", fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, color = CityGuardBlack)
-            Spacer(modifier = Modifier.height(48.dp))
+            Text("An toàn, kết nối", fontSize = 16.sp, color = CityGuardBlack, modifier = Modifier.padding(bottom = 40.dp))
 
-            OutlinedTextField(
+            // Ô nhập Tài khoản
+            TextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Tên đăng nhập") },
+                placeholder = { Text("Nhập tên đăng nhập", color = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = CityGuardWhite,
-                    unfocusedContainerColor = CityGuardWhite
-                )
+                    unfocusedContainerColor = CityGuardWhite,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                singleLine = true
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
+            // Ô nhập Mật khẩu
+            TextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Mật khẩu") },
+                placeholder = { Text("Nhập mật khẩu", color = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = CityGuardWhite,
-                    unfocusedContainerColor = CityGuardWhite
-                )
+                    unfocusedContainerColor = CityGuardWhite,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                singleLine = true
             )
-            Spacer(modifier = Modifier.height(32.dp))
 
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Quên mật khẩu?",
+                modifier = Modifier.align(Alignment.End).clickable { },
+                color = CityGuardBlack,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Nút Đăng nhập
             if (authState is AuthState.Loading) {
                 CircularProgressIndicator(color = CityGuardBlack)
             } else {
@@ -88,9 +111,20 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                     colors = ButtonDefaults.buttonColors(containerColor = CityGuardBlack),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Đăng Nhập", color = CityGuardWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("ĐĂNG NHẬP", color = CityGuardWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Chuyển sang Đăng ký
+            Text(
+                text = "Chưa có tài khoản? Đăng ký",
+                modifier = Modifier.clickable { navController.navigate("register") },
+                color = CityGuardBlack,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
