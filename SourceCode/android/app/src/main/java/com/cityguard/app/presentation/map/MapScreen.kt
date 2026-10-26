@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import com.cityguard.app.presentation.map.components.ReportSummaryCard
 import androidx.compose.ui.platform.LocalInspectionMode
 import com.cityguard.app.domain.model.ReportSummary
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.cityguard.app.domain.location.LocationResult
 /** M1: UI mock. Navigation thật thuộc Main Navigation của nhóm. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,28 +34,17 @@ fun MapScreen(
     onOpenProfile: (() -> Unit)? = null,
     onOpenReportDetails: ((String) -> Unit)? = null,
     onSelectReport: (String) -> Unit,
+    locationUiState: LocationUiState = LocationUiState.Idle,
+    hasLocationPermission: Boolean = false,
+    onLocationClick: () -> Unit = {},
+    onOpenLocationSettings: () -> Unit = {},
+    onOpenAppSettings: () -> Unit = {},
 
-    mapContent: @Composable (
+    mapContent: (@Composable (
         List<ReportSummary>,
         String?,
         (String) -> Unit
-    ) -> Unit = { reports, selectedId, onClick ->
-        if (LocalInspectionMode.current) {
-            FakeMap(
-                reports = reports,
-                selectedReportId = selectedId,
-                onMarkerClick = onClick,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            ReportMap(
-                reports = reports,
-                selectedReportId = selectedId,
-                onMarkerClick = onClick,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-    }
+    ) -> Unit)? = null
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
@@ -61,12 +52,33 @@ fun MapScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
     val successState = uiState as? MapUiState.Success
-
     val reports = successState?.reports.orEmpty()
     val selectedReportId = successState?.selectedReportId
     val selectedReport = successState?.selectedReport
+    val locationFinished = locationUiState as? LocationUiState.Finished
+    val locationResult = locationFinished?.result
+    val currentFix = locationResult as? LocationResult.Success
+    val locationMessage = when (locationResult) {
+        LocationResult.PermissionDenied ->
+            "Chưa có quyền vị trí. Bạn vẫn có thể xem bản đồ."
+        LocationResult.ServicesDisabled ->
+            "Dịch vụ vị trí đang tắt. Hãy bật vị trí và thử lại."
+        LocationResult.Stale ->
+            "Tọa độ đã quá cũ. Hãy thử lấy lại vị trí."
+        LocationResult.Unavailable ->
+            "Không tìm được tọa độ. Hãy di chuyển đến nơi thoáng và thử lại."
+        is LocationResult.Failure ->
+            "Lấy vị trí thất bại. Vui lòng thử lại."
+        is LocationResult.Success -> when {
+            locationResult.approximate ->
+                "Đang dùng vị trí gần đúng. Vòng vị trí có thể không chính xác."
+            locationResult.fromCache ->
+                "Đang dùng vị trí gần đây được lưu trên thiết bị."
+            else -> null
+        }
+        null -> null
+    }
 
     Scaffold(
         modifier = modifier,
@@ -90,15 +102,42 @@ fun MapScreen(
             Box(Modifier.fillMaxSize()) {
 
                 // Vẽ bản đồ trước, các nút và card nằm phía trên.
-                mapContent(
-                    reports,
-                    selectedReportId,
-                    { reportId ->
-                        onSelectReport(reportId)
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    }
-                )
+
+                val markerClick: (String) -> Unit = { reportId ->
+                    onSelectReport(reportId)
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+
+                if (mapContent != null) {
+                    mapContent(
+                        reports,
+                        selectedReportId,
+                        markerClick
+                    )
+                } else if (LocalInspectionMode.current) {
+                    FakeMap(
+                        reports = reports,
+                        selectedReportId = selectedReportId,
+                        onMarkerClick = markerClick,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    ReportMap(
+                        reports = reports,
+                        selectedReportId = selectedReportId,
+                        onMarkerClick = markerClick,
+                        modifier = Modifier.fillMaxSize(),
+                        deviceLocation = currentFix?.point,
+                        locationRequestId = if (currentFix != null) {
+                            locationFinished?.requestId ?: 0
+                        } else {
+                            0
+                        },
+                        hasLocationPermission = hasLocationPermission
+                    )
+                }
+
                 when (uiState) {
                     MapUiState.Loading -> {
                         CircularProgressIndicator(
@@ -136,30 +175,87 @@ fun MapScreen(
                         .fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.End
                 ) {
-                    FilledTonalButton(
-                        onClick = { scope.launch { snackbarHostState.showSnackbar("GPS đang phát triển (M2)") } },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color.White, contentColor = MapColors.Blue
-                        ),
-                        modifier = Modifier.testTag("gps_placeholder")
-                    ) { Text("◎ Vị trí (demo)") }
 
-                    if (selectedReport != null) {
-                        Spacer(Modifier.height(6.dp))
-                        ReportSummaryCard(
-                            report = selectedReport,
-                            onOpenDetails = {
-                                if (onOpenReportDetails != null) onOpenReportDetails(selectedReport.id)
-                                else scope.launch {
-                                    snackbarHostState.showSnackbar("Chi tiết báo cáo đang phát triển")
+                    FilledTonalButton(
+                        onClick = onLocationClick,
+                        enabled = locationUiState != LocationUiState.Loading,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color.White,
+                            contentColor = MapColors.Blue
+                        ),
+                        modifier = Modifier.testTag("gps_my_location")
+                    ) {
+                        if (locationUiState == LocationUiState.Loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Đang lấy vị trí...")
+                        } else {
+                            Text("◎ Vị trí của tôi")
+                        }
+                    }
+
+                    if (locationMessage != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(
+                            color = Color.White,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Text(
+                                    text = locationMessage,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                when (locationResult) {
+                                    LocationResult.ServicesDisabled -> {
+                                        TextButton(
+                                            onClick = onOpenLocationSettings
+                                        ) {
+                                            Text("Bật dịch vụ vị trí")
+                                        }
+                                    }
+
+                                    LocationResult.PermissionDenied -> {
+                                        TextButton(
+                                            onClick = onOpenAppSettings
+                                        ) {
+                                            Text("Mở cài đặt quyền")
+                                        }
+                                    }
+
+                                    else -> Unit
                                 }
                             }
-                        )
+                        }
+                    }
+                        if (selectedReport != null) {
+                            Spacer(Modifier.height(6.dp))
+
+                            ReportSummaryCard(
+                                report = selectedReport,
+                                onOpenDetails = {
+                                    if (onOpenReportDetails != null) {
+                                        onOpenReportDetails(selectedReport.id)
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                "Chi tiết báo cáo đang phát triển"
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
-    }
+
 
     if (showFilterSheet) {
         ModalBottomSheet(onDismissRequest = { showFilterSheet = false }) {

@@ -26,13 +26,18 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
-
+import androidx.compose.runtime.*
+import com.cityguard.app.domain.location.DeviceLocation
+import com.google.android.gms.maps.CameraUpdateFactory
 @Composable
 internal fun ReportMap(
     reports: List<ReportSummary>,
     selectedReportId: String?,
     onMarkerClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    deviceLocation: DeviceLocation? = null,
+    locationRequestId: Int = 0,
+    hasLocationPermission: Boolean = false
 ) {
     // Khởi tạo góc nhìn một lần cho state camera này.
     // Khu vực nằm gần các tọa độ demo R001–R008.
@@ -43,12 +48,40 @@ internal fun ReportMap(
         )
     }
 
+    var mapLoaded by remember { mutableStateOf(false) }
+// LaunchedEffect thực hiện tác vụ coroutine trong Compose khi key thay đổi.
+    LaunchedEffect(mapLoaded, locationRequestId) {
+        if (
+            mapLoaded &&
+            locationRequestId > 0 &&
+            deviceLocation != null
+        ) {
+            val target = LatLng(
+                deviceLocation.latitude,
+                deviceLocation.longitude
+            )
+
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(
+                    target,
+                    16f
+                ),
+                800
+            )
+        }
+    }
+
+
     GoogleMap(
         modifier = modifier,
         cameraPositionState = cameraPositionState,
+
         properties = MapProperties(
-            isMyLocationEnabled = false
+            isMyLocationEnabled = hasLocationPermission
         ),
+        onMapLoaded = {
+            mapLoaded = true
+        },
         uiSettings = MapUiSettings(
             scrollGesturesEnabled = true,
             zoomGesturesEnabled = true,
@@ -114,8 +147,8 @@ internal fun ReportMap(
                                 id = report.category.markerIconRes()
                             ),
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }

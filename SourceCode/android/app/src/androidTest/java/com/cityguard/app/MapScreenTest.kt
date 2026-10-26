@@ -19,6 +19,8 @@ import org.junit.runner.RunWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import com.cityguard.app.presentation.map.components.FakeMap
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToLog
 @RunWith(AndroidJUnit4::class)
 class MapScreenTest {
 
@@ -28,6 +30,7 @@ class MapScreenTest {
     @Test
     fun clickingMarkerThenCardOpensCorrectReport() {
         var openedReportId: String? = null
+        var selectedByClick: String? = null
 
         composeTestRule.setContent {
             var state by remember {
@@ -42,6 +45,8 @@ class MapScreenTest {
                 MapScreen(
                     uiState = state,
                     onSelectReport = { reportId ->
+                        selectedByClick = reportId
+
                         state = state.copy(
                             selectedReportId = reportId
                         )
@@ -61,9 +66,50 @@ class MapScreenTest {
             }
         }
 
+
         composeTestRule
             .onNodeWithTag("marker_R001")
             .performClick()
+
+        composeTestRule.waitForIdle()
+
+// 1. Kiểm tra callback đã nhận đúng R001.
+        composeTestRule.runOnIdle {
+            assertEquals("R001", selectedByClick)
+        }
+
+// 2. In cây giao diện TRƯỚC khi kiểm tra.
+        composeTestRule
+            .onRoot(useUnmergedTree = true)
+            .printToLog("CITYGUARD_TEST")
+
+// 3. Kiểm tra Report Card trong unmerged tree.
+        composeTestRule
+            .onNodeWithTag(
+                "report_card_R001",
+                useUnmergedTree = true
+            )
+            .assertExists()
+
+// 4. Kiểm tra Card đang hiển thị.
+        composeTestRule
+            .onNodeWithTag(
+                "report_card_R001",
+                useUnmergedTree = true
+            )
+            .assertIsDisplayed()
+
+// 5. Kiểm tra nội dung báo cáo.
+        composeTestRule
+            .onNodeWithText(
+                "Ùn tắc giờ cao điểm",
+                useUnmergedTree = true
+            )
+            .assertIsDisplayed()
+
+
+        composeTestRule.onRoot()
+            .printToLog("CITYGUARD_TEST")
 
         composeTestRule
             .onNodeWithTag("report_card_R001")
@@ -73,19 +119,21 @@ class MapScreenTest {
             .onNodeWithText("Ùn tắc giờ cao điểm")
             .assertIsDisplayed()
 
-        // Đổi lựa chọn để phát hiện lỗi giữ lại report cũ.
+        // Chọn marker khác để kiểm tra state cập nhật.
         composeTestRule
             .onNodeWithTag("marker_R003")
             .performClick()
+
+        composeTestRule.waitForIdle()
 
         composeTestRule
             .onNodeWithTag("report_card_R003")
             .assertIsDisplayed()
             .performClick()
 
+        // Đảm bảo mở đúng Report Details.
         composeTestRule.runOnIdle {
             assertEquals("R003", openedReportId)
         }
     }
-
 }
