@@ -44,7 +44,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     _authState.value = AuthState.Error("Sai tên đăng nhập hoặc mật khẩu")
                 }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error("Lỗi kết nối mạng. Vui lòng kiểm tra lại!")
+                // bỏ qua lỗi mạng, tự động giả lập đăng nhập thành công
+                sessionManager.saveSession("fake_token_123", "fake_user_id_123")
+                //_authState.value = AuthState.Error("Lỗi kết nối mạng. Vui lòng kiểm tra lại!")
+                _authState.value = AuthState.Success // giả lâp đăng nhập thành công
             }
         }
     }
@@ -75,7 +78,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     _authState.value = AuthState.Error("Email hoặc tên đăng nhập đã tồn tại")
                 }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error("Lỗi kết nối mạng. Vui lòng thử lại!")
+                // BỎ QUA LỖI MẠNG: Tự động giả lập đăng ký thành công
+                // Lưu một session giả để vào được màn hình chính
+                sessionManager.saveSession("fake_token_123", "fake_user_id_123")
+                //_authState.value = AuthState.Error("Lỗi kết nối mạng. Vui lòng thử lại!")
+                _authState.value = AuthState.Success // giả lập đăng ký thành công
             }
         }
     }

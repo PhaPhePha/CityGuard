@@ -14,7 +14,7 @@ import com.hoangpha.cityguard.ui.auth.RegisterScreen
 import com.hoangpha.cityguard.ui.auth.SplashScreen
 import com.hoangpha.cityguard.ui.navigation.MainScreen
 import com.hoangpha.cityguard.ui.theme.CityGuardAppTheme
-
+import com.hoangpha.cityguard.ui.auth.ForgotPasswordScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,8 +34,11 @@ class MainActivity : ComponentActivity() {
                     composable("login") { LoginScreen(navController, authViewModel) }
                     // Màn hình Đăng ký
                     composable("register") { RegisterScreen(navController, authViewModel) }
+                    // Màn hình quên mật khẩu
+                    composable("forgot_password") { ForgotPasswordScreen(navController) }
                     // Màn hình chính
-                    composable("main") { MainScreen(authViewModel) }
+                    //composable("main") { MainScreen(authViewModel) }
+
                 }
             }
         }
