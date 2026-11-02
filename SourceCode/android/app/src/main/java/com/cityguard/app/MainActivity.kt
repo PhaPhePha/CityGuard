@@ -11,23 +11,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.cityguard.app.presentation.map.MapRoute
 import com.cityguard.app.ui.theme.CityGuardTheme
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             CityGuardTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "CityGuard",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                MapRoute()
                 }
             }
         }
-    }
 }
 
 @Composable
