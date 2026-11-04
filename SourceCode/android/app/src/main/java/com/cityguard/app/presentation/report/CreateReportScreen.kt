@@ -130,7 +130,7 @@ fun CreateReportScreen(
 }
 
 // ----- Xem thử trong Android Studio (không cần chạy emulator) -----
-@Preview(showBackground = true, name = "Trống")
+@Preview(showBackground = true, widthDp = 360, heightDp = 780, name = "Trống")
 @Composable
 private fun CreateReportEmptyPreview() {
     CityGuardTheme {
@@ -138,7 +138,7 @@ private fun CreateReportEmptyPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Đang gửi")
+@Preview(showBackground = true, widthDp = 360, heightDp = 780, name = "Đang gửi")
 @Composable
 private fun CreateReportSubmittingPreview() {
     CityGuardTheme {
@@ -155,7 +155,7 @@ private fun CreateReportSubmittingPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Lỗi")
+@Preview(showBackground = true, widthDp = 360, heightDp = 780, name = "Lỗi")
 @Composable
 private fun CreateReportErrorPreview() {
     CityGuardTheme {
