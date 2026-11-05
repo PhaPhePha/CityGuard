@@ -41,9 +41,9 @@ fun MainScreen(authViewModel: AuthViewModel) {
         NavHost(
             navController = navController,
             startDestination = "map",
-            modifier = Modifier.padding(bottom = 80.dp) // Thêm padding dưới để không bị thanh nav che
+            modifier = Modifier.padding(bottom = 80.dp)
         ) {
-            composable("map") { Text("Map Screen - TV3 làm") }
+            composable("map") { com.hoangpha.cityguard.presentation.map.MapRoute() } // Gọi hàm MapRoute() để vẽ toàn bộ giao diện Google Maps
             composable("create_report") { Text("Create Report - TV4 làm") }
             composable("community") { Text("Community - TV4 làm") }
             composable("profile") { ProfileScreen(navController, authViewModel) }

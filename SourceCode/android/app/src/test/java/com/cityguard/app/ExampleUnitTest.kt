@@ -1,4 +1,4 @@
-package com.cityguard.app
+package com.hoangpha.cityguard
 
 import org.junit.Test
 

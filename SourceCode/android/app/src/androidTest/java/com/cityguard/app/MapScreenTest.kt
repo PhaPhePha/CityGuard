@@ -1,4 +1,4 @@
-package com.cityguard.app.presentation.map
+package com.hoangpha.cityguard.presentation.map
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
@@ -11,14 +11,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.cityguard.app.data.mock.FakeReportData
+import com.hoangpha.cityguard.data.mock.FakeReportData
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import com.cityguard.app.presentation.map.components.FakeMap
+import com.hoangpha.cityguard.presentation.map.components.FakeMap
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToLog
 @RunWith(AndroidJUnit4::class)
