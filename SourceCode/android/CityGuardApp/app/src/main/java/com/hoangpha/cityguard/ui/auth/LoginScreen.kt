@@ -43,7 +43,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
-                //navController.navigate("main") { popUpTo("login") { inclusive = true } }
+                navController.navigate("main") { popUpTo("login") { inclusive = true } }
                 snackbarHostState.showSnackbar("Đăng nhập thành công!")
                 authViewModel.resetState()
             }

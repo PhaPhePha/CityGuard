@@ -36,8 +36,8 @@ class MainActivity : ComponentActivity() {
                     composable("register") { RegisterScreen(navController, authViewModel) }
                     // Màn hình quên mật khẩu
                     composable("forgot_password") { ForgotPasswordScreen(navController) }
-                    // Màn hình chính
-                    //composable("main") { MainScreen(authViewModel) }
+                     //Màn hình chính
+                    composable("main") { MainScreen(authViewModel) }
 
                 }
             }
