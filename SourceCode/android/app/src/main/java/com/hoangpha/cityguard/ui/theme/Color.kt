@@ -2,10 +2,14 @@ package com.hoangpha.cityguard.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Bảng màu của CityGuard
+val CityGuardYellow = Color(0xFFFDD835)
+val CityGuardYellowLight = Color(0xFFF9DE7B) // Màu vàng nhạt cho nền giao diện
+val CityGuardDarkYellow = Color(0xFFF9A825)
+val CityGuardBlack = Color(0xFF000000)
+val CityGuardWhite = Color(0xFFFFFFFF)
+val CityGuardGray = Color(0xFFF5F5F5)
+val CityGuardRed = Color(0xFFE53935)
+val CityGuardGreen = Color(0xFF43A047)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val BuildingTint = Color(0xFFE0B84D) // Màu vàng đậm dùng để nhuộm hình tòa nhà

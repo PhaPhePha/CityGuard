@@ -3,40 +3,45 @@ package com.hoangpha.cityguard
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.hoangpha.cityguard.presentation.map.MapRoute
-import com.hoangpha.cityguard.ui.theme.CityGuardTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.hoangpha.cityguard.data.local.SessionManager
+import com.hoangpha.cityguard.ui.auth.AuthViewModel
+import com.hoangpha.cityguard.ui.auth.LoginScreen
+import com.hoangpha.cityguard.ui.auth.RegisterScreen
+import com.hoangpha.cityguard.ui.auth.SplashScreen
+import com.hoangpha.cityguard.ui.navigation.MainScreen
+import com.hoangpha.cityguard.ui.theme.CityGuardAppTheme
+import com.hoangpha.cityguard.ui.auth.ForgotPasswordScreen
+import com.hoangpha.cityguard.presentation.map.MapScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        // 1. Khởi tạo SessionManager
+        val sessionManager = SessionManager(applicationContext)
+
         setContent {
-            CityGuardTheme {
-                MapRoute()
+            CityGuardAppTheme {
+                val navController = rememberNavController()
+                val authViewModel: AuthViewModel = viewModel()
+
+                NavHost(navController = navController, startDestination = "splash") { // có thể đổi qua main dn tc
+                    // Màn hình Splash
+                    composable("splash") { SplashScreen(navController, sessionManager) }
+                    // Màn hình Đăng nhập
+                    composable("login") { LoginScreen(navController, authViewModel) }
+                    // Màn hình Đăng ký
+                    composable("register") { RegisterScreen(navController, authViewModel) }
+                    // Màn hình quên mật khẩu
+                    composable("forgot_password") { ForgotPasswordScreen(navController) }
+                     //Màn hình chính
+                    composable("main") { MainScreen(authViewModel) }
+
                 }
             }
         }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CityGuardTheme {
-        Greeting("Android")
     }
 }
