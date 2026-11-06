@@ -1,5 +1,13 @@
 package com.cityguard.app.presentation.report
-
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +42,12 @@ fun CreateReportRoute(
     viewModel: CreateReportViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Mở bộ chọn ảnh của hệ thống; trả về địa chỉ (Uri) của ảnh đã chọn
+    val pickLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) viewModel.onImageChosen(uri.toString())
+    }
 
     // Chạy đúng một lần mỗi khi createdReportId đổi từ null sang có giá trị
     LaunchedEffect(state.createdReportId) {
@@ -46,6 +60,12 @@ fun CreateReportRoute(
         onDescriptionChanged = viewModel::onDescriptionChanged,
         onAddressChanged = viewModel::onAddressChanged,
         onSubmit = viewModel::submit,
+        onPickImage = {
+            pickLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        },
+        onRemoveImage = { viewModel.onImageChosen(null) },
         onBack = onBack
     )
 }
@@ -59,6 +79,8 @@ fun CreateReportScreen(
     onAddressChanged: (String) -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit,
+    onPickImage: () -> Unit = {},
+    onRemoveImage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -73,6 +95,28 @@ fun CreateReportScreen(
             Text("← Quay lại")
         }
         Text("Tạo báo cáo", style = MaterialTheme.typography.headlineSmall)
+        Text("Ảnh sự cố", style = MaterialTheme.typography.titleMedium)
+        state.imageUri?.let { uri ->
+            AsyncImage(
+                model = uri,
+                contentDescription = "Ảnh sự cố",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+            TextButton(onClick = onRemoveImage, enabled = !state.isSubmitting) {
+                Text("Xóa ảnh")
+            }
+        }
+        OutlinedButton(
+            onClick = onPickImage,
+            enabled = !state.isSubmitting,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (state.imageUri == null) "Chọn ảnh từ thư viện" else "Đổi ảnh")
+        }
 
         Text("Loại sự cố", style = MaterialTheme.typography.titleMedium)
         IncidentCategory.entries.chunked(2).forEach { rowItems ->
