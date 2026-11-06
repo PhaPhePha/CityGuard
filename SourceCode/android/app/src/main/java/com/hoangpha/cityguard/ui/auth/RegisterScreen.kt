@@ -27,12 +27,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavController
 import com.hoangpha.cityguard.R
 import com.hoangpha.cityguard.ui.theme.*
 
 @Composable
-fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
+fun RegisterScreen(
+    navController: NavController,
+    authViewModel: AuthController = viewModel<AuthViewModel>()
+) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -45,9 +49,10 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = 
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
-                // chuyển về đăng nhập thì chuyển main thành login
-                //navController.navigate("main") { popUpTo("register") { inclusive = true } }
-                snackbarHostState.showSnackbar("Đăng ký thành công!")
+                navController.navigate("main") {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                    launchSingleTop = true
+                }
                 authViewModel.resetState()
             }
             is AuthState.Error -> {

@@ -10,13 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.hoangpha.cityguard.ui.auth.AuthViewModel
+import com.hoangpha.cityguard.presentation.map.MapRoute
+import com.hoangpha.cityguard.ui.auth.AuthController
 import com.hoangpha.cityguard.ui.profile.ProfileScreen
 import com.hoangpha.cityguard.ui.profile.MyReportsScreen
 import com.hoangpha.cityguard.ui.theme.CityGuardBlack
@@ -31,7 +33,7 @@ sealed class BottomNavItem(var title: String, var icon: androidx.compose.ui.grap
 }
 
 @Composable
-fun MainScreen(authViewModel: AuthViewModel) {
+fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
     val navController = rememberNavController()
     val items = listOf(BottomNavItem.Map, BottomNavItem.CreateReport, BottomNavItem.Community, BottomNavItem.Profile)
 
@@ -43,10 +45,12 @@ fun MainScreen(authViewModel: AuthViewModel) {
             startDestination = "map",
             modifier = Modifier.padding(bottom = 80.dp)
         ) {
-            composable("map") { com.hoangpha.cityguard.presentation.map.MapRoute() } // Gọi hàm MapRoute() để vẽ toàn bộ giao diện Google Maps
-            composable("create_report") { Text("Create Report - TV4 làm") }
-            composable("community") { Text("Community - TV4 làm") }
-            composable("profile") { ProfileScreen(navController, authViewModel) }
+            composable("map") {
+                MapRoute(modifier = Modifier.testTag("map_route"))
+            }
+            composable("create_report") { Text("Tạo báo cáo chưa triển khai") }
+            composable("community") { Text("Cộng đồng chưa triển khai") }
+            composable("profile") { ProfileScreen(navController, authViewModel, onLogout) }
             composable("my_reports") { MyReportsScreen(navController) }
         }
 

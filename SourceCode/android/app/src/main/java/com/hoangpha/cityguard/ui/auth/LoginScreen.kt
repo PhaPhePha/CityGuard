@@ -27,12 +27,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavController
 import com.hoangpha.cityguard.R
 import com.hoangpha.cityguard.ui.theme.*
 
 @Composable
-fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
+fun LoginScreen(
+    navController: NavController,
+    authViewModel: AuthController = viewModel<AuthViewModel>()
+) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -43,7 +47,10 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
-                navController.navigate("main") { popUpTo("login") { inclusive = true } }
+                navController.navigate("main") {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                    launchSingleTop = true
+                }
                 snackbarHostState.showSnackbar("Đăng nhập thành công!")
                 authViewModel.resetState()
             }
@@ -158,7 +165,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                 Text(
                     text = "Quên mật khẩu?",
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable {
-                        navController.navigate("forgot_password") // Chuyển sang màn hình quên mật khẩu
+                        navController.navigate("forgot_password")
                     },
                     color = CityGuardBlack, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End
                 )

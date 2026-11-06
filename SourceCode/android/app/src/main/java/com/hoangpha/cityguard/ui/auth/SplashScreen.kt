@@ -26,8 +26,11 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
     LaunchedEffect(Unit) {
         delay(1500)
         val token = sessionManager.getToken()
-        if (token != null) {
-            //navController.navigate("main") { popUpTo("splash") { inclusive = true } }
+        if (!token.isNullOrBlank()) {
+            navController.navigate("main") {
+                popUpTo("splash") { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 

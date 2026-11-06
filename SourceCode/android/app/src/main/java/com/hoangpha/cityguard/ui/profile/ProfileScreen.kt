@@ -16,13 +16,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.hoangpha.cityguard.ui.auth.AuthViewModel
+import com.hoangpha.cityguard.ui.auth.AuthController
 import com.hoangpha.cityguard.ui.theme.CityGuardBlack
 import com.hoangpha.cityguard.ui.theme.CityGuardWhite
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
 
 @Composable
-fun ProfileScreen(navController: NavController, authViewModel: AuthViewModel) {
+fun ProfileScreen(
+    navController: NavController,
+    authViewModel: AuthController,
+    onLogout: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(CityGuardWhite)) {
         // Header màu vàng
         Box(modifier = Modifier.fillMaxWidth().background(CityGuardYellow).padding(24.dp)) {
@@ -54,8 +58,7 @@ fun ProfileScreen(navController: NavController, authViewModel: AuthViewModel) {
         ProfileMenuItem("Cài đặt", "Thông báo, quyền riêng tư", Icons.Default.Settings) { }
         ProfileMenuItem("Trợ giúp", "Hướng dẫn sử dụng", Icons.Default.Help) { }
         ProfileMenuItem("Đăng xuất", "", Icons.Default.ExitToApp, textColor = Color.Red) {
-            authViewModel.logout()
-            navController.navigate("login") { popUpTo(0) { inclusive = true } }
+            authViewModel.logout(onLogout)
         }
     }
 }

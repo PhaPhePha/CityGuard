@@ -19,14 +19,14 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
-class AuthViewModel(application: Application) : AndroidViewModel(application) {
+class AuthViewModel(application: Application) : AndroidViewModel(application), AuthController {
     private val sessionManager = SessionManager(application.applicationContext)
     private val authApi = ApiClient.create(sessionManager)
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
-    val authState: StateFlow<AuthState> = _authState
+    override val authState: StateFlow<AuthState> = _authState
 
-    fun login(username: String, password: String) {
+    override fun login(username: String, password: String) {
         if (username.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("Vui lòng nhập đầy đủ thông tin")
             return
@@ -49,7 +49,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun register(username: String, email: String, password: String, confirmPass: String) {
+    override fun register(username: String, email: String, password: String, confirmPass: String) {
         if (username.isBlank() || email.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("Vui lòng nhập đầy đủ thông tin")
             return
@@ -80,14 +80,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun logout() {
+    override fun logout(onComplete: () -> Unit) {
         viewModelScope.launch {
             sessionManager.clearSession()
             _authState.value = AuthState.Idle
+            onComplete()
         }
     }
 
-    fun resetState() {
+    override fun resetState() {
         _authState.value = AuthState.Idle
     }
 }
