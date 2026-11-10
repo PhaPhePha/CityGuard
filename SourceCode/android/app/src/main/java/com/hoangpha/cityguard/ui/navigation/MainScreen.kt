@@ -23,6 +23,7 @@ import com.hoangpha.cityguard.ui.profile.ProfileScreen
 import com.hoangpha.cityguard.ui.profile.MyReportsScreen
 import com.hoangpha.cityguard.ui.theme.CityGuardBlack
 import com.hoangpha.cityguard.ui.theme.CityGuardWhite
+import com.hoangpha.cityguard.presentation.report.CreateReportRoute
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
 
 sealed class BottomNavItem(var title: String, var icon: androidx.compose.ui.graphics.vector.ImageVector, var route: String) {
@@ -48,7 +49,12 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
             composable("map") {
                 MapRoute(modifier = Modifier.testTag("map_route"))
             }
-            composable("create_report") { Text("Tạo báo cáo chưa triển khai") }
+            composable("create_report") {
+                CreateReportRoute(
+                    onCreated = { },
+                    onBack = { navController.popBackStack() }
+                )
+            }
             composable("community") { Text("Cộng đồng chưa triển khai") }
             composable("profile") { ProfileScreen(navController, authViewModel, onLogout) }
             composable("my_reports") { MyReportsScreen(navController) }
