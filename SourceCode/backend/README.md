@@ -8,8 +8,8 @@ Backend cung cấp REST API cho ứng dụng Android CityGuard.
 
 ## Công nghệ
 
-- Framework: ...
-- Ngôn ngữ: ...
+- Framework: Spring Boot
+- Ngôn ngữ: Java
 - Database: PostgreSQL
 - Authentication: JWT hoặc ...
 - API format: REST JSON
