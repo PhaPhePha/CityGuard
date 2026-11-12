@@ -33,7 +33,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hoangpha.cityguard.domain.model.IncidentCategory
 import com.hoangpha.cityguard.ui.theme.CityGuardAppTheme
-
+import android.net.Uri
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 // "Route": nối ViewModel với màn hình. Chỗ duy nhất biết ViewModel tồn tại.
 @Composable
 fun CreateReportRoute(
@@ -47,6 +52,20 @@ fun CreateReportRoute(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) viewModel.onImageChosen(uri.toString())
+    }
+    val context = LocalContext.current
+
+    // Nhớ địa chỉ file ảnh đang chụp. rememberSaveable giữ lại khi xoay màn hình hoặc khi
+    // hệ thống tạm tắt app lúc camera đang mở; bản dùng remember sẽ làm mất ảnh vừa chụp.
+    var pendingPhotoUri by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            pendingPhotoUri?.let { viewModel.onImageChosen(it) }
+        }
+        pendingPhotoUri = null
     }
 
     // Chạy đúng một lần mỗi khi createdReportId đổi từ null sang có giá trị
@@ -65,6 +84,16 @@ fun CreateReportRoute(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         },
+        onTakePhoto = {
+            try {
+                val uri = createCameraImageUri(context)
+                pendingPhotoUri = uri.toString()
+                cameraLauncher.launch(uri)
+            } catch (e: Exception) {
+                pendingPhotoUri = null
+                viewModel.onCameraUnavailable()
+            }
+        },
         onRemoveImage = { viewModel.onImageChosen(null) },
         onBack = onBack
     )
@@ -80,6 +109,7 @@ fun CreateReportScreen(
     onSubmit: () -> Unit,
     onBack: () -> Unit,
     onPickImage: () -> Unit = {},
+    onTakePhoto: () -> Unit = {},
     onRemoveImage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -114,10 +144,17 @@ fun CreateReportScreen(
             onClick = onPickImage,
             enabled = !state.isSubmitting,
             modifier = Modifier.fillMaxWidth()
-        ) {
+        )
+        {
             Text(if (state.imageUri == null) "Chọn ảnh từ thư viện" else "Đổi ảnh")
         }
-
+        OutlinedButton(
+            onClick = onTakePhoto,
+            enabled = !state.isSubmitting,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Chụp ảnh")
+        }
         Text("Loại sự cố", style = MaterialTheme.typography.titleMedium)
         IncidentCategory.entries.chunked(2).forEach { rowItems ->
             Row(

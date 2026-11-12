@@ -42,6 +42,11 @@ class CreateReportViewModel(
     fun onImageChosen(uri: String?) {
         _uiState.update { it.copy(imageUri = uri, errorMessage = null) }
     }
+    fun onCameraUnavailable() {
+        _uiState.update {
+            it.copy(errorMessage = "Không mở được camera. Bạn có thể chọn ảnh từ thư viện.")
+        }
+    }
 
     fun submit() {
         val current = _uiState.value
