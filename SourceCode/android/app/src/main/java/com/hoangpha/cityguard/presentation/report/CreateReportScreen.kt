@@ -104,12 +104,19 @@ fun CreateReportRoute(
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
+        val pending = pendingPhotoUri
         if (success) {
-            pendingPhotoUri?.let { viewModel.onImageChosen(it) }
+            pending?.let { viewModel.onImageChosen(it) }
+        } else if (pending != null) {
+            // Hủy chụp: xóa file ảnh trống đã tạo trước đó
+            try {
+                context.contentResolver.delete(android.net.Uri.parse(pending), null, null)
+            } catch (e: Exception) {
+                // Không xóa được thì bỏ qua, không ảnh hưởng người dùng
+            }
         }
         pendingPhotoUri = null
     }
-
     // Chạy đúng một lần mỗi khi createdReportId đổi từ null sang có giá trị
     LaunchedEffect(state.createdReportId) {
         state.createdReportId?.let(onCreated)

@@ -21,6 +21,9 @@ class CommunityViewModel @JvmOverloads constructor(
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
 
     private var loadJob: Job? = null
+    fun onTabSelected(tab: CommunityTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
 
     init {
         load()

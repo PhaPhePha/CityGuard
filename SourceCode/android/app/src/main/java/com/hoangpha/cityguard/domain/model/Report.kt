@@ -24,5 +24,6 @@ data class Report(
     val noLongerCount: Int,
     val myVote: VoteType?,             // null nghĩa là chưa vote
     val imageUri: String? = null,
-    val comments: List<Comment> = emptyList()
+    val comments: List<Comment> = emptyList(),
+    val createdAtMillis: Long = 0L
 )

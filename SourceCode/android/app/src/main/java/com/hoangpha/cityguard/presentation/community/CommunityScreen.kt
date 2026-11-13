@@ -68,7 +68,9 @@ fun CommunityRoute(
     CommunityScreen(
         state = state,
         onReportClick = onReportClick,
+        onTabSelected = viewModel::onTabSelected,
         onRetry = viewModel::load
+
     )
 }
 
@@ -81,10 +83,9 @@ fun CommunityScreen(
     state: CommunityUiState,
     onReportClick: (String) -> Unit,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTabSelected: (CommunityTab) -> Unit = {},
 ) {
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-
     Column(modifier = modifier.fillMaxSize().background(CityGuardYellow)) {
         // Phần đầu nền vàng
         Column(
@@ -101,7 +102,10 @@ fun CommunityScreen(
                 .background(SheetBackground, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .padding(horizontal = 12.dp)
         ) {
-            CommunityTabs(selected = selectedTab, onSelect = { selectedTab = it })
+            CommunityTabs(
+                selected = state.selectedTab.ordinal,
+                onSelect = { onTabSelected(CommunityTab.entries[it]) }
+            )
 
             when {
                 state.isLoading -> {
@@ -133,7 +137,7 @@ fun CommunityScreen(
                         contentPadding = PaddingValues(bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(state.reports, key = { it.id }) { report ->
+                        items(state.visibleReports, key = { it.id }){ report ->
                             ReportCard(report = report, onClick = { onReportClick(report.id) })
                         }
                     }

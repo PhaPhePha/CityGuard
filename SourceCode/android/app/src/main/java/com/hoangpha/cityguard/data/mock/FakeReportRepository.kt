@@ -44,7 +44,8 @@ object FakeReportRepository : ReportRepository {
             confirmCount = 0,
             noLongerCount = 0,
             myVote = null,
-            imageUri = newReport.imageUri
+            imageUri = newReport.imageUri,
+            createdAtMillis = System.currentTimeMillis()
         )
         nextNumber++
         createdByRequestId[newReport.requestId] = report
@@ -83,45 +84,65 @@ object FakeReportRepository : ReportRepository {
         }
     }
 
-    private fun sampleReports() = listOf(
-        Report(
-            id = "R001", category = IncidentCategory.TRAFFIC_JAM,
-            description = "Các phương tiện đang di chuyển chậm.",
-            address = "Khu vực A", createdAtLabel = "5 phút trước", trustLabel = "Cao",
-            confirmCount = 9, noLongerCount = 1, myVote = null,
-            comments = listOf(
-                Comment("C001", "Nguyễn Văn A", "Đang kẹt xe tại đây, vẫn còn đông lắm.", "1 phút trước")
+    private fun sampleReports(): List<Report> {
+        val now = System.currentTimeMillis()
+        val minute = 60_000L
+        return listOf(
+            Report(
+                id = "R001", category = IncidentCategory.TRAFFIC_JAM,
+                description = "Các phương tiện đang di chuyển chậm.",
+                address = "Khu vực A", createdAtLabel = "5 phút trước", trustLabel = "Cao",
+                confirmCount = 9, noLongerCount = 1, myVote = null,
+                comments = listOf(
+                    Comment(
+                        "C001",
+                        "Nguyễn Văn A",
+                        "Đang kẹt xe tại đây, vẫn còn đông lắm.",
+                        "1 phút trước"
+                    )
+                ),
+                createdAtMillis = now - 5 * minute
+            ),
+            Report(
+                id = "R002", category = IncidentCategory.ROAD_DAMAGE,
+                description = "Mặt đường xuống cấp.",
+                address = "Khu vực B", createdAtLabel = "20 phút trước", trustLabel = "Thấp",
+                confirmCount = 0, noLongerCount = 2, myVote = null,
+                createdAtMillis = now - 20 * minute
+            ),
+            Report(
+                id = "R003",
+                category = IncidentCategory.FLOODING,
+                description = "Nước ngập gây khó khăn di chuyển.",
+                address = "Khu vực C",
+                createdAtLabel = "15 phút trước",
+                trustLabel = "Đang xác minh",
+                confirmCount = 0,
+                noLongerCount = 0,
+                myVote = null,
+                createdAtMillis = now - 15 * minute
+            ),
+            Report(
+                id = "R004", category = IncidentCategory.TRAFFIC_JAM,
+                description = "Lưu lượng xe tăng cao.",
+                address = "Khu vực D", createdAtLabel = "30 phút trước", trustLabel = "Trung bình",
+                confirmCount = 4, noLongerCount = 2, myVote = null,
+                createdAtMillis = now - 30 * minute
+            ),
+            Report(
+                id = "R005", category = IncidentCategory.ROAD_DAMAGE,
+                description = "Công trình sửa chữa mặt đường.",
+                address = "Khu vực E", createdAtLabel = "1 giờ trước", trustLabel = "Trung bình",
+                confirmCount = 2, noLongerCount = 0, myVote = null,
+                createdAtMillis = now - 60 * minute
+            ),
+            Report(
+                id = "R006", category = IncidentCategory.ROAD_OBSTRUCTION,
+                description = "Cây lớn đổ gây cản trở giao thông.",
+                address = "Khu vực H", createdAtLabel = "2 giờ trước", trustLabel = "Cao",
+                confirmCount = 6, noLongerCount = 0, myVote = null,
+                createdAtMillis = now - 120 * minute
             )
-        ),
-        Report(
-            id = "R002", category = IncidentCategory.ROAD_DAMAGE,
-            description = "Mặt đường xuống cấp.",
-            address = "Khu vực B", createdAtLabel = "20 phút trước", trustLabel = "Thấp",
-            confirmCount = 0, noLongerCount = 2, myVote = null
-        ),
-        Report(
-            id = "R003", category = IncidentCategory.FLOODING,
-            description = "Nước ngập gây khó khăn di chuyển.",
-            address = "Khu vực C", createdAtLabel = "15 phút trước", trustLabel = "Đang xác minh",
-            confirmCount = 0, noLongerCount = 0, myVote = null
-        ),
-        Report(
-            id = "R004", category = IncidentCategory.TRAFFIC_JAM,
-            description = "Lưu lượng xe tăng cao.",
-            address = "Khu vực D", createdAtLabel = "30 phút trước", trustLabel = "Trung bình",
-            confirmCount = 4, noLongerCount = 2, myVote = null
-        ),
-        Report(
-            id = "R005", category = IncidentCategory.ROAD_DAMAGE,
-            description = "Công trình sửa chữa mặt đường.",
-            address = "Khu vực E", createdAtLabel = "1 giờ trước", trustLabel = "Trung bình",
-            confirmCount = 2, noLongerCount = 0, myVote = null
-        ),
-        Report(
-            id = "R006", category = IncidentCategory.ROAD_OBSTRUCTION,
-            description = "Cây lớn đổ gây cản trở giao thông.",
-            address = "Khu vực H", createdAtLabel = "2 giờ trước", trustLabel = "Cao",
-            confirmCount = 6, noLongerCount = 0, myVote = null
         )
-    )
+    }
 }
