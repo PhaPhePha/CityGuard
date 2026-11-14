@@ -137,7 +137,7 @@ fun CommunityScreen(
                         contentPadding = PaddingValues(bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(state.visibleReports, key = { it.id }){ report ->
+                        items(state.visibleReports(), key = { it.id }) { report ->
                             ReportCard(report = report, onClick = { onReportClick(report.id) })
                         }
                     }
