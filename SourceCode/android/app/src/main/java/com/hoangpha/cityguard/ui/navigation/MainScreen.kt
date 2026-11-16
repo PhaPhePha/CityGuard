@@ -23,8 +23,12 @@ import com.hoangpha.cityguard.ui.profile.ProfileScreen
 import com.hoangpha.cityguard.ui.profile.MyReportsScreen
 import com.hoangpha.cityguard.ui.theme.CityGuardBlack
 import com.hoangpha.cityguard.ui.theme.CityGuardWhite
+import com.hoangpha.cityguard.presentation.report.CreateReportRoute
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
-
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.hoangpha.cityguard.presentation.report.ReportDetailRoute
+import com.hoangpha.cityguard.presentation.community.CommunityRoute
 sealed class BottomNavItem(var title: String, var icon: androidx.compose.ui.graphics.vector.ImageVector, var route: String) {
     object Map : BottomNavItem("Bản đồ", Icons.Default.Map, "map")
     object CreateReport : BottomNavItem("Tạo báo cáo", Icons.Default.AddCircle, "create_report")
@@ -48,8 +52,29 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
             composable("map") {
                 MapRoute(modifier = Modifier.testTag("map_route"))
             }
-            composable("create_report") { Text("Tạo báo cáo chưa triển khai") }
-            composable("community") { Text("Cộng đồng chưa triển khai") }
+            composable("create_report") {
+                CreateReportRoute(
+                    onCreated = { reportId ->
+                        navController.navigate("report_detail/$reportId") {
+                            popUpTo("create_report") { inclusive = true }
+                        }
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "report_detail/{reportId}",
+                arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+            ) {
+                ReportDetailRoute(onBack = { navController.popBackStack() })
+            }
+            composable("community") {
+                CommunityRoute(
+                    onReportClick = { reportId ->
+                        navController.navigate("report_detail/$reportId")
+                    }
+                )
+            }
             composable("profile") { ProfileScreen(navController, authViewModel, onLogout) }
             composable("my_reports") { MyReportsScreen(navController) }
         }
