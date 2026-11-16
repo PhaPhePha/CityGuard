@@ -45,6 +45,8 @@ object FakeReportRepository : ReportRepository {
             noLongerCount = 0,
             myVote = null,
             imageUri = newReport.imageUri,
+            latitude = newReport.latitude,
+            longitude = newReport.longitude,
             createdAtMillis = System.currentTimeMillis()
         )
         nextNumber++

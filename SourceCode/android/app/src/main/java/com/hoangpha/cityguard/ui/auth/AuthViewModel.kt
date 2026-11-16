@@ -21,7 +21,7 @@ sealed class AuthState {
 
 class AuthViewModel(application: Application) : AndroidViewModel(application), AuthController {
     private val sessionManager = SessionManager(application.applicationContext)
-    private val authApi = ApiClient.create(sessionManager)
+    private val authApi = ApiClient.auth(sessionManager)
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     override val authState: StateFlow<AuthState> = _authState
@@ -36,8 +36,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application), A
             _authState.value = AuthState.Loading
             try {
                 val response = authApi.login(LoginRequest(username, password))
-                if (response.isSuccessful && response.body() != null) {
-                    val body = response.body()!!
+                val body = response.body()?.data
+                if (response.isSuccessful && body != null) {
                     sessionManager.saveSession(body.token, body.userId)
                     _authState.value = AuthState.Success
                 } else {
@@ -54,6 +54,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application), A
             _authState.value = AuthState.Error("Vui lòng nhập đầy đủ thông tin")
             return
         }
+        if (password.length < 6) {
+            _authState.value = AuthState.Error("Mật khẩu phải có ít nhất 6 ký tự")
+            return
+        }
         if (password != confirmPass) {
             _authState.value = AuthState.Error("Mật khẩu xác nhận không khớp")
             return
@@ -67,8 +71,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application), A
             _authState.value = AuthState.Loading
             try {
                 val response = authApi.register(RegisterRequest(username, email, password))
-                if (response.isSuccessful && response.body() != null) {
-                    val body = response.body()!!
+                val body = response.body()?.data
+                if (response.isSuccessful && body != null) {
                     sessionManager.saveSession(body.token, body.userId)
                     _authState.value = AuthState.Success
                 } else {

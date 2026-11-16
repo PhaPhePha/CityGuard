@@ -1,6 +1,8 @@
 package com.hoangpha.cityguard.presentation.report
 
 import android.net.Uri
+import android.Manifest
+import android.content.pm.PackageManager
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhotoCamera
 
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -74,10 +77,15 @@ import androidx.compose.ui.unit.sp
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.core.content.ContextCompat
 
 import coil.compose.AsyncImage
 
 import com.hoangpha.cityguard.domain.model.IncidentCategory
+import com.hoangpha.cityguard.data.location.AndroidLocationProvider
+import com.hoangpha.cityguard.domain.location.LocationResult
+import com.hoangpha.cityguard.presentation.map.LocationUiState
+import com.hoangpha.cityguard.presentation.map.LocationViewModel
 import com.hoangpha.cityguard.presentation.map.components.markerIconRes
 import com.hoangpha.cityguard.ui.theme.CityGuardAppTheme
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
@@ -96,6 +104,39 @@ fun CreateReportRoute(
         if (uri != null) viewModel.onImageChosen(uri.toString())
     }
     val context = LocalContext.current
+
+    val locationProvider = remember(context.applicationContext) {
+        AndroidLocationProvider(context.applicationContext)
+    }
+    val locationViewModel: LocationViewModel = viewModel(
+        factory = remember(locationProvider) { LocationViewModel.factory(locationProvider) }
+    )
+    var showPermissionExplanation by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) locationViewModel.locate()
+        else viewModel.onLocationError("Cần cấp quyền vị trí để gắn tọa độ cho báo cáo")
+    }
+
+    LaunchedEffect(locationViewModel.uiState) {
+        val finished = locationViewModel.uiState as? LocationUiState.Finished ?: return@LaunchedEffect
+        when (val result = finished.result) {
+            is LocationResult.Success -> viewModel.onLocationResolved(
+                result.point.latitude,
+                result.point.longitude,
+                result.approximate,
+                result.fromCache
+            )
+            LocationResult.PermissionDenied -> viewModel.onLocationError("Cần cấp quyền vị trí để gắn tọa độ cho báo cáo")
+            LocationResult.ServicesDisabled -> viewModel.onLocationError("Hãy bật dịch vụ vị trí rồi thử lại")
+            LocationResult.Stale -> viewModel.onLocationError("Vị trí quá cũ, hãy thử lấy lại vị trí")
+            LocationResult.Unavailable -> viewModel.onLocationError("Chưa lấy được vị trí hiện tại, hãy thử lại")
+            is LocationResult.Failure -> viewModel.onLocationError("Không thể lấy vị trí: ${result.message}")
+        }
+    }
 
     // Nhớ địa chỉ file ảnh đang chụp. rememberSaveable giữ lại khi xoay màn hình hoặc khi
     // hệ thống tạm tắt app lúc camera đang mở; bản dùng remember sẽ làm mất ảnh vừa chụp.
@@ -127,6 +168,11 @@ fun CreateReportRoute(
         onCategorySelected = viewModel::onCategorySelected,
         onDescriptionChanged = viewModel::onDescriptionChanged,
         onAddressChanged = viewModel::onAddressChanged,
+        onUseCurrentLocation = {
+            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (granted) locationViewModel.locate() else showPermissionExplanation = true
+        },
         onSubmit = viewModel::submit,
         onPickImage = {
             pickLauncher.launch(
@@ -146,6 +192,23 @@ fun CreateReportRoute(
         onRemoveImage = { viewModel.onImageChosen(null) },
         onBack = onBack
     )
+
+    if (showPermissionExplanation) {
+        AlertDialog(
+            onDismissRequest = { showPermissionExplanation = false },
+            title = { Text("Cho phép sử dụng vị trí?") },
+            text = { Text("CityGuard cần vị trí hiện tại để gửi đúng tọa độ sự cố.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionExplanation = false
+                    permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                }) { Text("Tiếp tục") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionExplanation = false }) { Text("Hủy") }
+            }
+        )
+    }
 }
 
 // "Screen": chỉ vẽ theo state, không biết ViewModel. Nhờ vậy xem được bằng @Preview.
@@ -159,6 +222,7 @@ fun CreateReportScreen(
     onAddressChanged: (String) -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit,
+    onUseCurrentLocation: () -> Unit = {},
     onPickImage: () -> Unit = {},
     onTakePhoto: () -> Unit = {},
     onRemoveImage: () -> Unit = {},
@@ -269,6 +333,26 @@ fun CreateReportScreen(
                     disabledContainerColor = Color.White
                 )
             )
+            OutlinedButton(
+                onClick = onUseCurrentLocation,
+                enabled = !state.isSubmitting,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (state.latitude != null) "Lấy lại vị trí hiện tại" else "Dùng vị trí hiện tại")
+            }
+            if (state.latitude != null && state.longitude != null) {
+                Text(
+                    text = "Đã gắn GPS: %.6f, %.6f%s".format(
+                        state.latitude,
+                        state.longitude,
+                        if (state.locationApproximate) " (xấp xỉ)" else ""
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4B4B4B)
+                )
+            }
 
             Text("Vị trí hiện tại", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             OutlinedTextField(

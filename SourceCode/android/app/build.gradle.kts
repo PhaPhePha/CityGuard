@@ -19,7 +19,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"")// ApiClient đang hard-code
+        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"") // Override per environment before staging.
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
     }
 
     buildTypes {
@@ -27,6 +28,7 @@ android {
             optimization {
                 enable = false
             }
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
     }
     compileOptions {

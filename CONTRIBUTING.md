@@ -38,7 +38,7 @@ git push origin feature/report
 
 - Package Kotlin: viết thường.
 
-com.cityguard.app.presentation.report
+com.hoangpha.cityguard.presentation.report
 
 - Class: PascalCase.
 

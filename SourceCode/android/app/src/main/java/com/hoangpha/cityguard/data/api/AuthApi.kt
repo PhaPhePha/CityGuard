@@ -9,12 +9,13 @@ data class LoginRequest(val username: String, val password: String)
 data class RegisterRequest(val username: String, val email: String, val password: String)
 
 // Dữ liệu trả về
-data class AuthResponse(val token: String, val userId: String, val message: String)
+data class AuthResponse(val token: String, val userId: String, val username: String)
+data class ApiResponse<T>(val success: Boolean, val message: String?, val data: T?)
 
 interface AuthApi {
     @POST("/api/v1/auth/login")
-    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+    suspend fun login(@Body request: LoginRequest): Response<ApiResponse<AuthResponse>>
 
     @POST("/api/v1/auth/register")
-    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+    suspend fun register(@Body request: RegisterRequest): Response<ApiResponse<AuthResponse>>
 }

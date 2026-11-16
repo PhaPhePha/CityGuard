@@ -50,6 +50,7 @@ class CreateReportViewModelTest {
         onCategorySelected(IncidentCategory.TRAFFIC_JAM)
         onDescriptionChanged("Kẹt xe kéo dài")
         onAddressChanged("Võ Oanh, Bình Thạnh")
+        onLocationResolved(10.8012, 106.7145, approximate = false, fromCache = false)
     }
 
     @Test

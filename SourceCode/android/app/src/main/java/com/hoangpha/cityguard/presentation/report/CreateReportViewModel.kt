@@ -2,7 +2,7 @@ package com.hoangpha.cityguard.presentation.report
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hoangpha.cityguard.data.mock.FakeReportRepository
+import com.hoangpha.cityguard.data.RepositoryProvider
 import com.hoangpha.cityguard.domain.model.IncidentCategory
 import com.hoangpha.cityguard.domain.repository.NewReport
 import com.hoangpha.cityguard.domain.repository.ReportRepository
@@ -16,7 +16,7 @@ import java.util.UUID
 
 class CreateReportViewModel(
     // Hôm nay là dữ liệu giả; khi có API chỉ đổi đối tượng này
-    private val repository: ReportRepository = FakeReportRepository
+    private val repository: ReportRepository = RepositoryProvider.reportRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateReportUiState())
@@ -37,6 +37,23 @@ class CreateReportViewModel(
 
     fun onAddressChanged(text: String) {
         _uiState.update { it.copy(address = text, errorMessage = null) }
+    }
+
+    fun onLocationResolved(latitude: Double, longitude: Double, approximate: Boolean, fromCache: Boolean) {
+        _uiState.update {
+            it.copy(
+                latitude = latitude,
+                longitude = longitude,
+                address = if (it.address.isBlank()) "Vị trí GPS hiện tại" else it.address,
+                locationApproximate = approximate,
+                locationFromCache = fromCache,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun onLocationError(message: String) {
+        _uiState.update { it.copy(errorMessage = message) }
     }
 
     fun onImageChosen(uri: String?) {
@@ -65,6 +82,15 @@ class CreateReportViewModel(
             _uiState.update { it.copy(errorMessage = "Vui lòng nhập vị trí") }
             return
         }
+        val latitude = current.latitude
+        val longitude = current.longitude
+        if (latitude == null || longitude == null ||
+            !latitude.isFinite() || !longitude.isFinite() ||
+            latitude !in -90.0..90.0 || longitude !in -180.0..180.0
+        ) {
+            _uiState.update { it.copy(errorMessage = "Vui lòng lấy vị trí hiện tại trước khi gửi") }
+            return
+        }
 
         _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
         viewModelScope.launch {
@@ -75,7 +101,9 @@ class CreateReportViewModel(
                         category = category,
                         description = current.description.trim(),
                         address = current.address.trim(),
-                        imageUri = current.imageUri
+                        imageUri = current.imageUri,
+                        latitude = latitude,
+                        longitude = longitude
                     )
                 )
                 _uiState.update { it.copy(isSubmitting = false, createdReportId = report.id) }

@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.hoangpha.cityguard.data.local.SessionManager
+import com.hoangpha.cityguard.data.RepositoryProvider
 import com.hoangpha.cityguard.ui.auth.AuthViewModel
 import com.hoangpha.cityguard.ui.auth.ForgotPasswordScreen
 import com.hoangpha.cityguard.ui.auth.LoginScreen
@@ -22,6 +23,7 @@ class MainActivity : ComponentActivity() {
 
         // Khởi tạo SessionManager
         val sessionManager = SessionManager(applicationContext)
+        RepositoryProvider.initialize(sessionManager)
 
         setContent {
             CityGuardAppTheme {

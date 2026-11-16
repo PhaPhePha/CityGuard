@@ -50,7 +50,11 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
             modifier = Modifier.padding(bottom = 80.dp)
         ) {
             composable("map") {
-                MapRoute(modifier = Modifier.testTag("map_route"))
+                MapRoute(
+                    modifier = Modifier.testTag("map_route"),
+                    onOpenProfile = { navController.navigate("profile") },
+                    onOpenReportDetails = { id -> navController.navigate("report_detail/$id") }
+                )
             }
             composable("create_report") {
                 CreateReportRoute(
@@ -86,7 +90,8 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
         ) {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-            items.forEach { item ->
+            val showBottomBar = currentRoute in items.map { it.route }
+            if (showBottomBar) items.forEach { item ->
                 NavigationBarItem(
                     icon = { Icon(item.icon, contentDescription = item.title) },
                     label = { Text(item.title) },

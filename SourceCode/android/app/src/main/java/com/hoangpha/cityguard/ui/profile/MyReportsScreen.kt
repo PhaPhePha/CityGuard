@@ -20,17 +20,18 @@ import androidx.navigation.NavController
 import com.hoangpha.cityguard.ui.theme.CityGuardBlack
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
 import com.hoangpha.cityguard.utils.ReportMock
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hoangpha.cityguard.domain.model.Report
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyReportsScreen(navController: NavController) {
+fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel = viewModel()) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Tất cả", "Đang hoạt động", "Đã hết hạn")
 
-    val mockReports = listOf(
-        ReportMock("1", "Kẹt xe", "Xô Viết Nghệ Tĩnh, Bình Thạnh", "5 phút trước", "Đang hoạt động", Color(0xFF43A047), 9, 1),
-        ReportMock("2", "Ngập nước", "Lý Chính Thắng, Q.3", "2 giờ trước", "Đang xác minh", Color(0xFFF9A825), 0, 0)
-    )
+    val reports by viewModel.reports.collectAsStateWithLifecycle()
+    val visibleReports = reports.filter { selectedTab == 0 || (selectedTab == 1 && it.status == "ACTIVE") || (selectedTab == 2 && it.status == "EXPIRED") }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -58,7 +59,7 @@ fun MyReportsScreen(navController: NavController) {
         }
 
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(mockReports) { report ->
+            items(visibleReports) { report ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -66,22 +67,22 @@ fun MyReportsScreen(navController: NavController) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = report.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                            Text(text = report.category.displayName, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
                             Surface(
-                                color = report.statusColor.copy(alpha = 0.2f),
+                                color = Color(0xFFD6F3D8),
                                 shape = MaterialTheme.shapes.small
                             ) {
                                 Text(
-                                    text = report.status,
-                                    color = report.statusColor,
+                                    text = report.trustLabel,
+                                    color = Color(0xFF43A047),
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = report.location, fontSize = 14.sp, color = Color.Gray)
-                        Text(text = report.time, fontSize = 12.sp, color = Color.Gray)
+                        Text(text = report.address, fontSize = 14.sp, color = Color.Gray)
+                        Text(text = report.createdAtLabel, fontSize = 12.sp, color = Color.Gray)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.ThumbUp, contentDescription = "Confirm", tint = Color(0xFF43A047), modifier = Modifier.size(16.dp))

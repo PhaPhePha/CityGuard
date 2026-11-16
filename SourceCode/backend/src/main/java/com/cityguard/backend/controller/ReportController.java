@@ -2,6 +2,9 @@ package com.cityguard.backend.controller;
 
 import com.cityguard.backend.dto.response.ApiResponse;
 import com.cityguard.backend.dto.response.ReportResponse;
+import com.cityguard.backend.dto.request.CommentRequest;
+import com.cityguard.backend.dto.request.CreateReportRequest;
+import com.cityguard.backend.dto.request.VoteRequest;
 import com.cityguard.backend.enums.ReportStatus;
 import com.cityguard.backend.enums.ReportType;
 import com.cityguard.backend.service.ReportService;
@@ -15,6 +18,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -59,5 +66,32 @@ public class ReportController {
     ) {
         ReportResponse report = reportService.getReportById(id);
         return ResponseEntity.ok(ApiResponse.success("Lấy thông tin báo cáo thành công", report));
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<ReportResponse>> create(
+            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId,
+            @Valid @RequestBody CreateReportRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Tạo báo cáo thành công", reportService.create(userId, request)));
+    }
+
+    @PostMapping("/{id}/vote")
+    public ResponseEntity<ApiResponse<ReportResponse>> vote(
+            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId,
+            @PathVariable String id, @Valid @RequestBody VoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(reportService.vote(userId, id, request)));
+    }
+
+    @PostMapping("/{id}/comments")
+    public ResponseEntity<ApiResponse<ReportResponse>> comment(
+            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId,
+            @PathVariable String id, @Valid @RequestBody CommentRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(reportService.comment(userId, id, request)));
+    }
+
+    @GetMapping("/mine")
+    public ResponseEntity<ApiResponse<List<ReportResponse>>> mine(
+            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId) {
+        return ResponseEntity.ok(ApiResponse.success(reportService.getMyReports(userId)));
     }
 }

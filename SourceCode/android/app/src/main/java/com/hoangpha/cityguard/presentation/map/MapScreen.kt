@@ -48,14 +48,20 @@ fun MapScreen(
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
+    var selectedCategory by rememberSaveable { mutableStateOf<IncidentCategory?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val successState = uiState as? MapUiState.Success
     val reports = successState?.reports.orEmpty()
+    val visibleReports = reports.filter { report ->
+        (selectedCategory == null || report.category == selectedCategory) &&
+                (searchQuery.isBlank() || listOf(report.title, report.description, report.address)
+                    .any { it.contains(searchQuery, ignoreCase = true) })
+    }
     val selectedReportId = successState?.selectedReportId
-    val selectedReport = successState?.selectedReport
+    val selectedReport = visibleReports.firstOrNull { it.id == selectedReportId }
     val locationFinished = locationUiState as? LocationUiState.Finished
     val locationResult = locationFinished?.result
     val currentFix = locationResult as? LocationResult.Success
@@ -111,20 +117,20 @@ fun MapScreen(
 
                 if (mapContent != null) {
                     mapContent(
-                        reports,
+                        visibleReports,
                         selectedReportId,
                         markerClick
                     )
                 } else if (LocalInspectionMode.current) {
                     FakeMap(
-                        reports = reports,
+                        reports = visibleReports,
                         selectedReportId = selectedReportId,
                         onMarkerClick = markerClick,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     ReportMap(
-                        reports = reports,
+                        reports = visibleReports,
                         selectedReportId = selectedReportId,
                         onMarkerClick = markerClick,
                         modifier = Modifier.fillMaxSize(),
@@ -154,7 +160,7 @@ fun MapScreen(
                     }
 
                     is MapUiState.Success -> {
-                        if (reports.isEmpty()) {
+                        if (visibleReports.isEmpty()) {
                             CenterMessage("Chưa có sự cố nào trong khu vực")
                         }
                     }
@@ -266,11 +272,17 @@ fun MapScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("Bộ lọc sự cố", style = MaterialTheme.typography.titleLarge)
-                Text("M1: Chỉ hiển thị các loại sự cố, chưa áp dụng lọc marker.")
+                Text("Lọc theo loại sự cố")
                 IncidentCategory.entries.forEach { category ->
-                    Text("• ${category.displayName}")
+                    FilterChip(
+                        selected = selectedCategory == category,
+                        onClick = { selectedCategory = if (selectedCategory == category) null else category },
+                        label = { Text(category.displayName) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-                Button(onClick = { showFilterSheet = false }) { Text("Đóng") }
+                OutlinedButton(onClick = { selectedCategory = null; searchQuery = ""; showFilterSheet = false }) { Text("Xóa bộ lọc") }
+                Button(onClick = { showFilterSheet = false }) { Text("Áp dụng") }
             }
         }
     }

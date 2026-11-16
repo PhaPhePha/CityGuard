@@ -12,10 +12,10 @@ object ApiClient {
     // Sử dụng BASE_URL từ BuildConfig để không bị hard-code
     private val BASE_URL = BuildConfig.BASE_URL
 
-    fun create(sessionManager: SessionManager): AuthApi {
+    private fun retrofit(sessionManager: SessionManager): Retrofit {
         // Công cụ in log ra màn hình Console để dễ debug
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
 
         val client = OkHttpClient.Builder()
@@ -27,6 +27,8 @@ object ApiClient {
                 if (token != null) {
                     request.addHeader("Authorization", "Bearer $token")
                 }
+                val userId = runBlocking { sessionManager.getUserId() }
+                if (userId != null) request.addHeader("X-User-Id", userId)
                 chain.proceed(request.build())
             }
             .build()
@@ -36,6 +38,8 @@ object ApiClient {
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(AuthApi::class.java)
     }
+
+    fun auth(sessionManager: SessionManager): AuthApi = retrofit(sessionManager).create(AuthApi::class.java)
+    fun reports(sessionManager: SessionManager): ReportApi = retrofit(sessionManager).create(ReportApi::class.java)
 }

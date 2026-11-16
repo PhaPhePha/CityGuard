@@ -25,5 +25,9 @@ data class Report(
     val myVote: VoteType?,             // null nghĩa là chưa vote
     val imageUri: String? = null,
     val comments: List<Comment> = emptyList(),
-    val createdAtMillis: Long = 0L
+    val createdAtMillis: Long = 0L,
+    val latitude: Double = 10.8012,
+    val longitude: Double = 106.7145,
+    val creatorId: String? = null,
+    val status: String = "ACTIVE"
 )

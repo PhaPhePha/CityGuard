@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * DTO dữ liệu báo cáo sự cố trả về client (theo DacTaKyThuat Trang 8 Mục 6.1 và Trang 9 Mục 6.2).
  */
@@ -31,5 +33,7 @@ public class ReportResponse {
     private String imageUrl;
     private String createdAt;
     private String expiresAt;
+    private String creatorId;
+    private List<CommentResponse> comments;
 }
 

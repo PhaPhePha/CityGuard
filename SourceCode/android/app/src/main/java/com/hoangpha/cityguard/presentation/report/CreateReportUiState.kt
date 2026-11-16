@@ -7,6 +7,10 @@ data class CreateReportUiState(
     val category: IncidentCategory? = null,   // null = chưa chọn loại
     val description: String = "",
     val address: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val locationApproximate: Boolean = false,
+    val locationFromCache: Boolean = false,
     val imageUri: String? = null,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,

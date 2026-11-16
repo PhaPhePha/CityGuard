@@ -35,3 +35,7 @@ google-services.json
 *.hprof
 
 **/gradle/gradle-daemon-jvm.properties
+
+# Local build caches used when the default user cache is not writable
+**/.gradle-home-review/
+**/.maven-home-review/

@@ -4,6 +4,7 @@ import com.hoangpha.cityguard.domain.model.IncidentCategory
 import com.hoangpha.cityguard.domain.model.Report
 import com.hoangpha.cityguard.domain.model.VoteType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 // Dữ liệu người dùng nhập khi tạo report (chưa có id, thời gian, số vote)
 data class NewReport(
@@ -11,7 +12,10 @@ data class NewReport(
     val category: IncidentCategory,
     val description: String,
     val address: String,
-    val imageUri: String?
+    val imageUri: String?,
+    // Tọa độ thật lấy từ thiết bị; mặc định chỉ để fake repository/test cũ còn biên dịch.
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0
 )
 
 interface ReportRepository {
@@ -24,4 +28,5 @@ interface ReportRepository {
     suspend fun createReport(newReport: NewReport): Report
     suspend fun vote(reportId: String, type: VoteType)
     suspend fun addComment(reportId: String, content: String)
+    suspend fun myReports(): List<Report> = reports.first()
 }

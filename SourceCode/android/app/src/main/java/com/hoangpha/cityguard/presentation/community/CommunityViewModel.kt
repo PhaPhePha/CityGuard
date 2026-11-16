@@ -2,7 +2,7 @@ package com.hoangpha.cityguard.presentation.community
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hoangpha.cityguard.data.mock.FakeReportRepository
+import com.hoangpha.cityguard.data.RepositoryProvider
 import com.hoangpha.cityguard.domain.repository.ReportRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 class CommunityViewModel @JvmOverloads constructor(
     // Hôm nay là dữ liệu giả; khi có API chỉ đổi đối tượng này
-    private val repository: ReportRepository = FakeReportRepository
+    private val repository: ReportRepository = RepositoryProvider.reportRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CommunityUiState())

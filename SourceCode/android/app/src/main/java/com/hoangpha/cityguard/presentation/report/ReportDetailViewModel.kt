@@ -3,7 +3,7 @@ package com.hoangpha.cityguard.presentation.report
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hoangpha.cityguard.data.mock.FakeReportRepository
+import com.hoangpha.cityguard.data.RepositoryProvider
 import com.hoangpha.cityguard.domain.model.VoteType
 import com.hoangpha.cityguard.domain.repository.ReportRepository
 import kotlinx.coroutines.CancellationException
@@ -11,12 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ReportDetailViewModel @JvmOverloads constructor(
     savedStateHandle: SavedStateHandle,
     // Hôm nay là dữ liệu giả; khi có API chỉ đổi đối tượng này
-    private val repository: ReportRepository = FakeReportRepository
+    private val repository: ReportRepository = RepositoryProvider.reportRepository
 ) : ViewModel() {
 
     // ID do navigation truyền sang (route "report_detail/{reportId}")
@@ -42,6 +43,9 @@ class ReportDetailViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             try {
                 repository.vote(reportId, type)
+                repository.observeReport(reportId).first()?.let { updated ->
+                    _uiState.update { it.copy(report = updated) }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -70,6 +74,9 @@ class ReportDetailViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             try {
                 repository.addComment(reportId, content)
+                repository.observeReport(reportId).first()?.let { updated ->
+                    _uiState.update { it.copy(report = updated) }
+                }
                 _uiState.update { it.copy(commentText = "") }    // gửi xong mới xóa ô nhập
             } catch (e: CancellationException) {
                 throw e

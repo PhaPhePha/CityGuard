@@ -26,6 +26,8 @@ class SessionManager(private val context: Context) {
         return context.dataStore.data.map { it[TOKEN_KEY] }.first()
     }
 
+    suspend fun getUserId(): String? = context.dataStore.data.map { it[USER_ID_KEY] }.first()
+
     suspend fun clearSession() {
         context.dataStore.edit { it.clear() }
     }
