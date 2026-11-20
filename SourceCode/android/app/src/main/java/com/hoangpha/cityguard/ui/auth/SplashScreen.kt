@@ -1,6 +1,7 @@
 package com.hoangpha.cityguard.ui.auth
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,23 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
             .fillMaxSize()
             .background(CityGuardYellowLight)
     ) {
+        Image(
+            painter = painterResource(R.drawable.bg_cityguard_auth),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.BottomCenter
+        )
+        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    0f to CityGuardAuthYellow.copy(alpha = 0.72f),
+                    0.42f to CityGuardAuthYellow.copy(alpha = 0.45f),
+                    1f to CityGuardAuthYellow.copy(alpha = 0.08f)
+                )
+            )
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -60,17 +78,8 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
             Text("CITYGUARD", fontSize = 42.sp, fontWeight = FontWeight.ExtraBold, color = CityGuardBlack)
             Text("An toàn hơn, kết nối hơn", fontSize = 18.sp, color = CityGuardBlack, modifier = Modifier.padding(top = 4.dp, bottom = 32.dp))
 
-            // 3. ẢNH NHÀ CAO TẦNG (TRÀN 2 BÊN MÀN HÌNH, TO RÕ)
-            Image(
-                painter = painterResource(id = R.drawable.bg_city_silhouette),
-                contentDescription = "City Background",
-                modifier = Modifier
-                    .fillMaxWidth() // Luôn tràn 2 bên
-                    .height(250.dp), // Tăng chiều cao lên 350dp cho thật to
-                contentScale = ContentScale.Crop, // THAY ĐỔI QUAN TRỌNG: Ép phóng to, lấp đầy khung
-                alpha = 1f, // Tăng độ đậm (rõ nét hơn)
-                colorFilter = ColorFilter.tint(BuildingTint)
-            )
+            // Giữ vị trí cụm nút; ảnh thành phố giờ nằm ở lớp nền toàn màn hình.
+            Spacer(Modifier.height(250.dp))
 
             Spacer(modifier = Modifier.height(16.dp))
 

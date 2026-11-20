@@ -1,12 +1,18 @@
 package com.hoangpha.cityguard.ui.auth
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
@@ -35,6 +41,7 @@ fun ForgotPasswordScreen(navController: NavController) {
     var newPassword by remember { mutableStateOf("") }
     var confirmNewPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmVisible by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -43,17 +50,26 @@ fun ForgotPasswordScreen(navController: NavController) {
             .fillMaxSize()
             .background(CityGuardYellowLight)
     ) {
+        IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.align(Alignment.TopStart).zIndex(1f).systemBarsPadding().padding(start = 8.dp, top = 4.dp)) {
+            Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
+        }
+        // Giữ tỷ lệ ảnh; neo đáy để thành phố và con đường không bị lệch giữa các màn.
         Image(
-            painter = painterResource(id = R.drawable.bg_city_silhouette),
+            painter = painterResource(id = R.drawable.bg_cityguard_auth),
             contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(400.dp)
-                .offset(y = 80.dp),
+            modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
-            alpha = 0.5f,
-            colorFilter = ColorFilter.tint(BuildingTint)
+            alignment = Alignment.BottomCenter
+        )
+        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    0f to CityGuardAuthYellow.copy(alpha = 0.72f),
+                    0.42f to CityGuardAuthYellow.copy(alpha = 0.45f),
+                    1f to CityGuardAuthYellow.copy(alpha = 0.08f)
+                )
+            )
         )
 
         SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -62,37 +78,40 @@ fun ForgotPasswordScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
-                .padding(horizontal = 32.dp),
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp)
+                .padding(top = 48.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Image(
                 painter = painterResource(id = R.drawable.logo_cityguard),
                 contentDescription = "Logo",
-                modifier = Modifier.width(150.dp).height(150.dp)
+                modifier = Modifier.size(150.dp)
             )
 
-            Text("Khôi Phục Mật Khẩu", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = CityGuardBlack)
-            Text("Nhập email và mật khẩu mới của bạn", fontSize = 14.sp, color = CityGuardBlack, modifier = Modifier.padding(top = 4.dp, bottom = 24.dp))
+            Text("Khôi phục mật khẩu", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack, textAlign = TextAlign.Center)
+            Text("Nhập email và mật khẩu mới của bạn", fontSize = 15.sp, color = CityGuardBlack, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(CityGuardWhite.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                    .background(CityGuardWhite.copy(alpha = 0.78f), RoundedCornerShape(16.dp))
                     .padding(16.dp)
             ) {
                 // Email xác thực
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Email, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Email xác thực", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Email xác thực", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = email, onValueChange = { email = it },
                     placeholder = { Text("Nhập email của bạn", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
@@ -106,12 +125,12 @@ fun ForgotPasswordScreen(navController: NavController) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Mật khẩu mới", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Mật khẩu mới", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = newPassword, onValueChange = { newPassword = it },
                     placeholder = { Text("Nhập mật khẩu mới", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
@@ -132,18 +151,24 @@ fun ForgotPasswordScreen(navController: NavController) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Nhập lại mật khẩu mới", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Nhập lại mật khẩu mới", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = confirmNewPassword, onValueChange = { confirmNewPassword = it },
                     placeholder = { Text("Nhập lại mật khẩu mới", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { confirmVisible = !confirmVisible }) {
+                            Icon(if (confirmVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                contentDescription = if (confirmVisible) "Ẩn mật khẩu xác nhận" else "Hiện mật khẩu xác nhận", tint = Color.Gray)
+                        }
+                    },
                     singleLine = true
                 )
             }
@@ -156,11 +181,11 @@ fun ForgotPasswordScreen(navController: NavController) {
                     // Xử lý logic đổi mật khẩu ở đây
                     // Ví dụ: if(email.isBlank() || newPassword != confirmNewPassword) { ... }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CityGuardBlack),
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(18.dp)
             ) {
-                Text("XÁC NHẬN ĐỔI MẬT KHẨU", color = CityGuardWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("XÁC NHẬN ĐỔI MẬT KHẨU", color = CityGuardWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -171,7 +196,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                 color = CityGuardBlack, fontSize = 14.sp, fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

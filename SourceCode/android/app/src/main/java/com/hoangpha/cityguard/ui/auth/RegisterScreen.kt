@@ -1,6 +1,11 @@
 package com.hoangpha.cityguard.ui.auth
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +17,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +48,7 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmVisible by remember { mutableStateOf(false) }
 
     val authState by authViewModel.authState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -68,19 +75,30 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(CityGuardYellowLight)
     ) {
+        IconButton(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.align(Alignment.TopStart).zIndex(1f).systemBarsPadding().padding(start = 8.dp, top = 4.dp)
+        ) {
+            Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
+        }
         // ẢNH NỀN NHÀ RÕ HƠN
+        // Giữ tỷ lệ ảnh; neo đáy để thành phố và con đường không bị lệch giữa các màn.
         Image(
-            painter = painterResource(id = R.drawable.bg_city_silhouette),
+            painter = painterResource(id = R.drawable.bg_cityguard_auth),
             contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(450.dp)
-                //.padding(bottom = 60.dp),
-                .offset(y = 80.dp),
+            modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
-            alpha = 0.6f, // Tăng độ rõ nét
-            colorFilter = ColorFilter.tint(BuildingTint)
+            alignment = Alignment.BottomCenter
+        )
+        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    0f to CityGuardAuthYellow.copy(alpha = 0.72f),
+                    0.42f to CityGuardAuthYellow.copy(alpha = 0.45f),
+                    1f to CityGuardAuthYellow.copy(alpha = 0.08f)
+                )
+            )
         )
 
         SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -89,60 +107,62 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
-                .padding(horizontal = 32.dp),
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp)
+                .padding(top = 48.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // LOGO
             Image(
                 painter = painterResource(id = R.drawable.logo_cityguard),
                 contentDescription = "Logo",
                 modifier = Modifier
-                    .width(130.dp)
-                    .height(130.dp)
+                    .size(120.dp)
             )
 
             // CHỮ
-            Text("CITYGUARD", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = CityGuardBlack)
-            Text("An toàn, kết nối", fontSize = 18.sp, color = CityGuardBlack, modifier = Modifier.padding(top = 4.dp, bottom = 24.dp))
+            Text("CITYGUARD", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = CityGuardBlack)
+            Text("An toàn hơn, kết nối hơn", fontSize = 17.sp, color = CityGuardBlack, modifier = Modifier.padding(top = 4.dp, bottom = 24.dp))
 
             // KHUNG BỌC CÁC Ô NHẬP LIỆU
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(CityGuardWhite.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    .background(CityGuardWhite.copy(alpha = 0.78f), RoundedCornerShape(16.dp))
                     .padding(16.dp)
             ) {
                 // Tên đăng nhập
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Tên đăng nhập", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Tên đăng nhập", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = username, onValueChange = { username = it },
                     placeholder = { Text("Nhập tên đăng nhập", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
                     singleLine = true
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Email
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Email, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Email", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Email", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = email, onValueChange = { email = it },
                     placeholder = { Text("Nhập email", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
@@ -150,18 +170,18 @@ fun RegisterScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Mật khẩu
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Password", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Mật khẩu", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = password, onValueChange = { password = it },
                     placeholder = { Text("Nhập mật khẩu", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
@@ -176,24 +196,30 @@ fun RegisterScreen(
                     },
                     singleLine = true
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Confirm
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Confirm", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CityGuardBlack)
+                    Text("Nhập lại mật khẩu", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = confirmPass, onValueChange = { confirmPass = it },
                     placeholder = { Text("Nhập lại mật khẩu", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { confirmVisible = !confirmVisible }) {
+                            Icon(if (confirmVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                contentDescription = if (confirmVisible) "Ẩn mật khẩu xác nhận" else "Hiện mật khẩu xác nhận", tint = Color.Gray)
+                        }
+                    },
                     singleLine = true
                 )
             }
@@ -208,9 +234,9 @@ fun RegisterScreen(
             } else {
                 Button(
                     onClick = { authViewModel.register(username, email, password, confirmPass) },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CityGuardBlack),
-                    shape = RoundedCornerShape(24.dp)
+                    shape = RoundedCornerShape(18.dp)
                 ) {
                     Text("ĐĂNG KÝ", color = CityGuardWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -227,7 +253,7 @@ fun RegisterScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

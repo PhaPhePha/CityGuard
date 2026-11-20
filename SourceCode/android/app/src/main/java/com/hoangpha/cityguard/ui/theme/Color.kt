@@ -13,3 +13,6 @@ val CityGuardRed = Color(0xFFE53935)
 val CityGuardGreen = Color(0xFF43A047)
 
 val BuildingTint = Color(0xFFE0B84D) // Màu vàng đậm dùng để nhuộm hình tòa nhà
+
+// Sắc vàng cho lớp phủ nền xác thực; không đổi bảng màu các màn chức năng.
+val CityGuardAuthYellow = Color(0xFFFFE38A)
