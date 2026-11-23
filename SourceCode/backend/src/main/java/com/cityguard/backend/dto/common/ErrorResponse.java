@@ -1,6 +1,4 @@
-package com.cityguard.backend.dto.response;
-
-import java.time.Instant;
+package com.cityguard.backend.dto.common;
 
 import com.cityguard.backend.enums.ErrorCode;
 import lombok.AllArgsConstructor;
@@ -8,9 +6,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 /**
- * Định dạng phản hồi lỗi chuẩn (theo DacTaKyThuat Trang 9, Mục 6.3):
- * { boolean success, String errorCode, String message, Instant timestamp }.
+ * Định dạng phản hồi lỗi chuẩn (theo DacTaKyThuat Trang 9, Mục 6.3).
  */
 @Data
 @Builder
@@ -18,9 +17,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ErrorResponse {
     @Builder.Default
-    private boolean success = false; // Luôn là false
-    private String errorCode;        // Mã lỗi (VD: REPORT_NOT_FOUND)
-    private String message;          // Thông điệp rõ ràng cho client
+    private boolean success = false;
+    private String errorCode;
+    private String message;
     private Instant timestamp;
 
     public static ErrorResponse of(ErrorCode errorCode) {
@@ -41,3 +40,4 @@ public class ErrorResponse {
                 .build();
     }
 }
+

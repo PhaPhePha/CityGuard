@@ -1,6 +1,6 @@
 package com.cityguard.backend.exception;
 
-import com.cityguard.backend.dto.response.ErrorResponse;
+import com.cityguard.backend.dto.common.ErrorResponse;
 import com.cityguard.backend.enums.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

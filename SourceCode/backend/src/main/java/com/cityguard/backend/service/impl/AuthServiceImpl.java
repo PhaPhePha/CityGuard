@@ -1,9 +1,9 @@
 package com.cityguard.backend.service.impl;
 
-import com.cityguard.backend.dto.request.LoginRequest;
-import com.cityguard.backend.dto.request.RefreshTokenRequest;
-import com.cityguard.backend.dto.request.RegisterRequest;
-import com.cityguard.backend.dto.response.AuthResponse;
+import com.cityguard.backend.dto.auth.LoginRequest;
+import com.cityguard.backend.dto.auth.RefreshTokenRequest;
+import com.cityguard.backend.dto.auth.RegisterRequest;
+import com.cityguard.backend.dto.auth.AuthResponse;
 import com.cityguard.backend.entity.RefreshToken;
 import com.cityguard.backend.entity.User;
 import com.cityguard.backend.enums.ErrorCode;

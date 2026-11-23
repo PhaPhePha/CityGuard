@@ -1,9 +1,9 @@
 package com.cityguard.backend.service;
 
-import com.cityguard.backend.dto.request.LoginRequest;
-import com.cityguard.backend.dto.request.RefreshTokenRequest;
-import com.cityguard.backend.dto.request.RegisterRequest;
-import com.cityguard.backend.dto.response.AuthResponse;
+import com.cityguard.backend.dto.auth.LoginRequest;
+import com.cityguard.backend.dto.auth.RefreshTokenRequest;
+import com.cityguard.backend.dto.auth.RegisterRequest;
+import com.cityguard.backend.dto.auth.AuthResponse;
 
 /**
  * Interface nghiệp vụ xử lý xác thực và quản lý phiên người dùng (theo SRS Trang 7 Mục 3.1).

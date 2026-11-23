@@ -1,32 +1,36 @@
 package com.cityguard.backend.controller;
 
-import com.cityguard.backend.dto.response.ApiResponse;
-import com.cityguard.backend.dto.response.ReportResponse;
-import com.cityguard.backend.dto.request.CommentRequest;
-import com.cityguard.backend.dto.request.CreateReportRequest;
-import com.cityguard.backend.dto.request.VoteRequest;
+import com.cityguard.backend.dto.comment.CommentRequest;
+import com.cityguard.backend.dto.comment.CommentResponse;
+import com.cityguard.backend.dto.common.ApiResponse;
+import com.cityguard.backend.dto.common.PageResponse;
+import com.cityguard.backend.dto.report.CreateReportRequest;
+import com.cityguard.backend.dto.report.ReportResponse;
+import com.cityguard.backend.dto.report.VoteRequest;
 import com.cityguard.backend.enums.ReportStatus;
 import com.cityguard.backend.enums.ReportType;
+import com.cityguard.backend.service.CommentService;
 import com.cityguard.backend.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import jakarta.validation.Valid;
 
 import java.util.List;
 
 /**
- * Controller quản lý và truy vấn báo cáo sự cố giao thông (theo DacTaKyThuat Trang 8, Mục 6.0).
+ * Controller quản lý và truy vấn báo cáo sự cố giao thông (theo DacTaKyThuat Trang 8, Mục 6.0 & WBS 4.3.1).
  */
 @RestController
 @RequestMapping("/api/v1/reports")
@@ -35,6 +39,7 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final CommentService commentService;
 
     @GetMapping
     @Operation(
@@ -61,7 +66,7 @@ public class ReportController {
             description = "Trả về thông tin chi tiết của một báo cáo sự cố cụ thể kèm điểm tin cậy và số lượng vote"
     )
     public ResponseEntity<ApiResponse<ReportResponse>> getReportById(
-            @Parameter(description = "Mã định danh báo cáo sự cố (ví dụ: rpt_001)")
+            @Parameter(description = "Mã định danh báo cáo sự cố (ví dụ: rpt_001 hoặc public_id)")
             @PathVariable String id
     ) {
         ReportResponse report = reportService.getReportById(id);
@@ -69,29 +74,69 @@ public class ReportController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<ReportResponse>> create(
-            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId,
-            @Valid @RequestBody CreateReportRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Tạo báo cáo thành công", reportService.create(userId, request)));
+    @Operation(
+            summary = "Tạo báo cáo sự cố mới",
+            description = "Người dùng đã đăng nhập gửi thông tin báo cáo sự cố (có idempotency qua clientRequestId)"
+    )
+    public ResponseEntity<ApiResponse<ReportResponse>> createReport(
+            @Valid @RequestBody CreateReportRequest request
+    ) {
+        ReportResponse response = reportService.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo báo cáo thành công", response));
+    }
+
+    @PutMapping("/{id}/vote")
+    @Operation(
+            summary = "Bình chọn / xác nhận sự cố",
+            description = "Xác nhận sự cố còn tồn tại (CONFIRMED) hoặc không còn nữa (NO_LONGER) và tự động cập nhật Trust Score"
+    )
+    public ResponseEntity<ApiResponse<ReportResponse>> vote(
+            @Parameter(description = "Mã định danh báo cáo sự cố")
+            @PathVariable String id,
+            @Valid @RequestBody VoteRequest request
+    ) {
+        ReportResponse response = reportService.vote(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận sự cố thành công", response));
     }
 
     @PostMapping("/{id}/vote")
-    public ResponseEntity<ApiResponse<ReportResponse>> vote(
-            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId,
-            @PathVariable String id, @Valid @RequestBody VoteRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(reportService.vote(userId, id, request)));
+    @Operation(
+            summary = "Bình chọn / xác nhận sự cố (dự phòng POST)",
+            description = "Tương thích ngược cho các client gọi phương thức POST"
+    )
+    public ResponseEntity<ApiResponse<ReportResponse>> votePost(
+            @PathVariable String id,
+            @Valid @RequestBody VoteRequest request
+    ) {
+        return vote(id, request);
+    }
+
+    @GetMapping("/{id}/comments")
+    @Operation(
+            summary = "Lấy danh sách bình luận của báo cáo",
+            description = "Lấy danh sách bình luận được phân trang (mặc định 20, tối đa 50)"
+    )
+    public ResponseEntity<ApiResponse<PageResponse<CommentResponse>>> getComments(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        PageResponse<CommentResponse> response = commentService.getComments(id, page, size);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/comments")
-    public ResponseEntity<ApiResponse<ReportResponse>> comment(
-            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId,
-            @PathVariable String id, @Valid @RequestBody CommentRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(reportService.comment(userId, id, request)));
-    }
-
-    @GetMapping("/mine")
-    public ResponseEntity<ApiResponse<List<ReportResponse>>> mine(
-            @RequestHeader(value = "X-User-Id", defaultValue = "demo") String userId) {
-        return ResponseEntity.ok(ApiResponse.success(reportService.getMyReports(userId)));
+    @Operation(
+            summary = "Thêm bình luận cho báo cáo",
+            description = "Người dùng đã đăng nhập thêm bình luận vào báo cáo sự cố"
+    )
+    public ResponseEntity<ApiResponse<CommentResponse>> addComment(
+            @PathVariable String id,
+            @Valid @RequestBody CommentRequest request
+    ) {
+        CommentResponse response = commentService.addComment(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Thêm bình luận thành công", response));
     }
 }

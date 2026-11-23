@@ -1,4 +1,4 @@
-package com.cityguard.backend.dto.response;
+package com.cityguard.backend.dto.auth;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,3 +35,4 @@ public class AuthResponse {
         private String role;
     }
 }
+

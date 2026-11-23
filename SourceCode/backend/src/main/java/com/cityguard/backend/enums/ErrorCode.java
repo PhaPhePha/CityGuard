@@ -12,6 +12,8 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Yêu cầu đăng nhập hoặc token không hợp lệ"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này"),
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy báo cáo sự cố"),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy bình luận"),
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy loại sự cố"),
     RESOURCE_CONFLICT(HttpStatus.CONFLICT, "Dữ liệu bị xung đột"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống, vui lòng thử lại sau");
 

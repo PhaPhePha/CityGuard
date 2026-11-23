@@ -1,5 +1,6 @@
-package com.cityguard.backend.dto.response;
+package com.cityguard.backend.dto.report;
 
+import com.cityguard.backend.dto.comment.CommentResponse;
 import com.cityguard.backend.enums.ReportStatus;
 import com.cityguard.backend.enums.ReportType;
 import com.cityguard.backend.enums.TrustLabel;

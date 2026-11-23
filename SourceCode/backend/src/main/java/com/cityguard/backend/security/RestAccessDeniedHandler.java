@@ -1,6 +1,6 @@
 package com.cityguard.backend.security;
 
-import com.cityguard.backend.dto.response.ErrorResponse;
+import com.cityguard.backend.dto.common.ErrorResponse;
 import com.cityguard.backend.enums.ErrorCode;
 import tools.jackson.databind.json.JsonMapper;
 import jakarta.servlet.http.HttpServletRequest;

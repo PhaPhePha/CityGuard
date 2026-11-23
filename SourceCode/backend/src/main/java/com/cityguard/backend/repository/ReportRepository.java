@@ -2,6 +2,8 @@ package com.cityguard.backend.repository;
 
 import com.cityguard.backend.entity.Report;
 import com.cityguard.backend.enums.ReportStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface ReportRepository extends JpaRepository<Report, Long> {
@@ -42,5 +45,16 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     @Query("SELECT r FROM Report r LEFT JOIN FETCH r.category c LEFT JOIN FETCH r.reportMetrics m WHERE r.id = :id")
     Optional<Report> findByIdWithDetails(@Param("id") Long id);
-}
 
+    Optional<Report> findByClientRequestId(UUID clientRequestId);
+
+    long countByUserId(Long userId);
+
+    @Query(value = "SELECT r FROM Report r LEFT JOIN FETCH r.category c LEFT JOIN FETCH r.reportMetrics m WHERE r.user.id = :userId ORDER BY r.createdAt DESC",
+           countQuery = "SELECT COUNT(r) FROM Report r WHERE r.user.id = :userId")
+    Page<Report> findByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @Query(value = "SELECT r FROM Report r LEFT JOIN FETCH r.category c LEFT JOIN FETCH r.reportMetrics m WHERE r.user.id = :userId AND r.status = :status ORDER BY r.createdAt DESC",
+           countQuery = "SELECT COUNT(r) FROM Report r WHERE r.user.id = :userId AND r.status = :status")
+    Page<Report> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") ReportStatus status, Pageable pageable);
+}

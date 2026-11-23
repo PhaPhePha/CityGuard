@@ -1,10 +1,10 @@
 package com.cityguard.backend.controller;
 
-import com.cityguard.backend.dto.request.LoginRequest;
-import com.cityguard.backend.dto.request.RefreshTokenRequest;
-import com.cityguard.backend.dto.request.RegisterRequest;
-import com.cityguard.backend.dto.response.ApiResponse;
-import com.cityguard.backend.dto.response.AuthResponse;
+import com.cityguard.backend.dto.auth.LoginRequest;
+import com.cityguard.backend.dto.auth.RefreshTokenRequest;
+import com.cityguard.backend.dto.auth.RegisterRequest;
+import com.cityguard.backend.dto.auth.AuthResponse;
+import com.cityguard.backend.dto.common.ApiResponse;
 import com.cityguard.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
