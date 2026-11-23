@@ -1,0 +1,13 @@
+package com.cityguard.backend.repository;
+
+import com.cityguard.backend.entity.ReportVote;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface ReportVoteRepository extends JpaRepository<ReportVote, Long> {
+    Optional<ReportVote> findByReportIdAndUserId(Long reportId, Long userId);
+}
+
