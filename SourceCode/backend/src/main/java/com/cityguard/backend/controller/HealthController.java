@@ -1,6 +1,6 @@
 package com.cityguard.backend.controller;
 
-import com.cityguard.backend.dto.response.ApiResponse;
+import com.cityguard.backend.dto.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
