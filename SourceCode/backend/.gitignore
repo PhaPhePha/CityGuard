@@ -31,3 +31,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment & Local Secrets ###
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+
+### Backups & Logs (BanGiaoDB_V2 Mục 10.1) ###
+*.backup
+*.dump
+*.log

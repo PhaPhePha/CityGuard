@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import com.hoangpha.cityguard.domain.model.ReportSummary
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 /** Card mô phỏng Figma. Timestamp, độ tin cậy và ảnh hiện là placeholder cho M1. */
 @Composable
 internal fun ReportSummaryCard(
@@ -77,19 +79,30 @@ internal fun ReportSummaryCard(
                     )
                 }
                 Spacer(Modifier.height(5.dp))
-                Text(report.title, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 2)
+                Text(
+                    text = report.description,
+                    fontSize = 12.sp,
+                    maxLines = 2
+                )
+
                 Text("📍 ${report.address}", fontSize = 11.sp, maxLines = 2)
-                Text("◷ 5 phút trước (demo)", fontSize = 11.sp, color = Color.Gray)
+
+                Text(
+                    text = report.createdAtLabel
+                        ?: "Chưa có thông tin thời gian",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+
                 Spacer(Modifier.height(5.dp))
                 Text(
-                    "Độ tin cậy: Cao (demo)",
-                    modifier = Modifier
-                        .background(Color(0xFFD6F3D8), RoundedCornerShape(5.dp))
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                    color = MapColors.Green,
+                    text = "Độ tin cậy: ${
+                        report.trustLabel ?: "Chưa xác định"
+                    }",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )
+
             }
             Box(
                 modifier = Modifier
@@ -97,7 +110,20 @@ internal fun ReportSummaryCard(
                     .background(Color(0xFFE8E2D7), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("📷\nẢnh demo", color = Color.DarkGray, fontSize = 12.sp)
+                if (!report.imageUri.isNullOrBlank()) {
+                    AsyncImage(
+                        model = report.imageUri,
+                        contentDescription = "Ảnh sự cố",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = "Không có ảnh",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray
+                    )
+                }
             }
         }
     }

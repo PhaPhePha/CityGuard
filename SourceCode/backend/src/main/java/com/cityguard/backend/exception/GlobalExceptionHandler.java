@@ -1,6 +1,6 @@
 package com.cityguard.backend.exception;
 
-import com.cityguard.backend.dto.response.ErrorResponse;
+import com.cityguard.backend.dto.common.ErrorResponse;
 import com.cityguard.backend.enums.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +42,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        return ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "Dữ liệu đầu vào không hợp lệ"));
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(err -> err.getDefaultMessage())
+                .filter(msg -> msg != null && !msg.isBlank())
+                .findFirst()
+                .orElse("Dữ liệu đầu vào không hợp lệ");
+        return ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message));
     }
 }

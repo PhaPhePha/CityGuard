@@ -25,6 +25,9 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import com.hoangpha.cityguard.domain.model.ReportSummary
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.hoangpha.cityguard.domain.location.LocationResult
+import com.hoangpha.cityguard.presentation.map.components.MapStatusOverlay
+import com.hoangpha.cityguard.domain.model.MapBounds
+import com.hoangpha.cityguard.presentation.map.components.MapStatusBanner
 /** M1: UI mock. Navigation thật thuộc Main Navigation của nhóm. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +42,10 @@ fun MapScreen(
     onLocationClick: () -> Unit = {},
     onOpenLocationSettings: () -> Unit = {},
     onOpenAppSettings: () -> Unit = {},
-
+    onRetry: (() -> Unit)? = null,
+    onViewportReady: (MapBounds) -> Unit = {},
+    filters: MapFilters = MapFilters(),
+    onFiltersApplied: (MapFilters) -> Unit = {},
     mapContent: (@Composable (
         List<ReportSummary>,
         String?,
@@ -48,7 +54,6 @@ fun MapScreen(
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
-    var selectedCategory by rememberSaveable { mutableStateOf<IncidentCategory?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -56,9 +61,18 @@ fun MapScreen(
     val successState = uiState as? MapUiState.Success
     val reports = successState?.reports.orEmpty()
     val visibleReports = reports.filter { report ->
-        (selectedCategory == null || report.category == selectedCategory) &&
-                (searchQuery.isBlank() || listOf(report.title, report.description, report.address)
-                    .any { it.contains(searchQuery, ignoreCase = true) })
+
+        searchQuery.isBlank() ||
+                listOf(
+                    report.title,
+                    report.description,
+                    report.address
+                ).any {
+                    it.contains(
+                        searchQuery,
+                        ignoreCase = true
+                    )
+                }
     }
     val selectedReportId = successState?.selectedReportId
     val selectedReport = visibleReports.firstOrNull { it.id == selectedReportId }
@@ -140,28 +154,62 @@ fun MapScreen(
                         } else {
                             0
                         },
-                        hasLocationPermission = hasLocationPermission
+                        hasLocationPermission = hasLocationPermission,
+                        onViewportReady = onViewportReady
                     )
                 }
 
                 when (uiState) {
+
                     MapUiState.Loading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
+                        MapStatusBanner(
+                            message = "Đang tải dữ liệu...",
+                            isLoading = true,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(top = 64.dp, start = 12.dp)
                         )
                     }
 
                     MapUiState.Empty -> {
-                        CenterMessage("Chưa có sự cố nào trong khu vực")
+                        MapStatusBanner(
+                            message = "Chưa có báo cáo sự cố trong khu vực",
+                            onRefresh = onRetry,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(top = 64.dp, start = 12.dp)
+                        )
                     }
 
                     is MapUiState.Error -> {
-                        CenterMessage(uiState.message)
+                        MapStatusOverlay(
+                            title = "Không tải được dữ liệu",
+                            message = uiState.message,
+                            onRetry = onRetry,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
 
                     is MapUiState.Success -> {
-                        if (visibleReports.isEmpty()) {
-                            CenterMessage("Chưa có sự cố nào trong khu vực")
+
+                        if (uiState.isRefreshing) {
+
+                            MapStatusBanner(
+                                message = "Đang cập nhật bản đồ...",
+                                isLoading = true,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(top = 64.dp, start = 12.dp)
+                            )
+
+                        } else if (visibleReports.isEmpty()) {
+
+                            MapStatusBanner(
+                                message = "Không tìm thấy sự cố phù hợp",
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(top = 64.dp, start = 12.dp)
+                            )
                         }
                     }
                 }
@@ -264,25 +312,119 @@ fun MapScreen(
 
 
     if (showFilterSheet) {
-        ModalBottomSheet(onDismissRequest = { showFilterSheet = false }) {
+
+        var draftFilters by remember(filters) {
+            mutableStateOf(filters)
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = {
+                showFilterSheet = false
+            }
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+
+                verticalArrangement =
+                    Arrangement.spacedBy(12.dp)
             ) {
-                Text("Bộ lọc sự cố", style = MaterialTheme.typography.titleLarge)
+
+                Text(
+                    text = "Bộ lọc sự cố",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
                 Text("Lọc theo loại sự cố")
+
+                FilterChip(
+                    selected = draftFilters.category == null,
+                    onClick = {
+                        draftFilters = draftFilters.copy(
+                            category = null
+                        )
+                    },
+                    label = { Text("Tất cả") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 IncidentCategory.entries.forEach { category ->
+
                     FilterChip(
-                        selected = selectedCategory == category,
-                        onClick = { selectedCategory = if (selectedCategory == category) null else category },
-                        label = { Text(category.displayName) },
+                        selected =
+                            draftFilters.category == category,
+
+                        onClick = {
+                            draftFilters = draftFilters.copy(
+                                category = category
+                            )
+                        },
+
+                        label = {
+                            Text(category.displayName)
+                        },
+
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                OutlinedButton(onClick = { selectedCategory = null; searchQuery = ""; showFilterSheet = false }) { Text("Xóa bộ lọc") }
-                Button(onClick = { showFilterSheet = false }) { Text("Áp dụng") }
+
+                HorizontalDivider()
+
+                Text("Lọc theo trạng thái")
+
+                FilterChip(
+                    selected = draftFilters.status == null,
+                    onClick = {
+                        draftFilters = draftFilters.copy(
+                            status = null
+                        )
+                    },
+                    label = { Text("Tất cả trạng thái") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                MapReportStatus.entries.forEach { status ->
+
+                    FilterChip(
+                        selected =
+                            draftFilters.status == status,
+
+                        onClick = {
+                            draftFilters = draftFilters.copy(
+                                status = status
+                            )
+                        },
+
+                        label = {
+                            Text(status.displayName)
+                        },
+
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        searchQuery = ""
+                        onFiltersApplied(MapFilters())
+                        showFilterSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Xóa bộ lọc")
+                }
+
+                Button(
+                    onClick = {
+                        onFiltersApplied(draftFilters)
+                        showFilterSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Áp dụng")
+                }
             }
         }
     }

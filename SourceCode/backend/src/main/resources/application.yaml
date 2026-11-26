@@ -1,9 +1,28 @@
 spring:
   application:
     name: backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://localhost:5432/cityguard_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  config:
+    import: optional:file:.env[.properties]
 
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:1800000}
+  refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
 
 cityguard:
   demo:

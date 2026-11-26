@@ -17,5 +17,8 @@ data class ReportSummary(
     val category: IncidentCategory,
     val address: String,
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
+    val createdAtLabel: String? = null,
+    val trustLabel: String? = null,
+    val imageUri: String? = null
 )

@@ -29,6 +29,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.*
 import com.hoangpha.cityguard.domain.location.DeviceLocation
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.hoangpha.cityguard.domain.model.MapBounds
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 @Composable
 internal fun ReportMap(
     reports: List<ReportSummary>,
@@ -37,7 +42,8 @@ internal fun ReportMap(
     modifier: Modifier = Modifier,
     deviceLocation: DeviceLocation? = null,
     locationRequestId: Int = 0,
-    hasLocationPermission: Boolean = false
+    hasLocationPermission: Boolean = false,
+    onViewportReady: (MapBounds) -> Unit = {}
 ) {
     // Khởi tạo góc nhìn một lần cho state camera này.
     // Khu vực nằm gần các tọa độ demo R001–R008.
@@ -49,6 +55,52 @@ internal fun ReportMap(
     }
 
     var mapLoaded by remember { mutableStateOf(false) }
+
+    val currentOnViewportReady by rememberUpdatedState(
+        onViewportReady
+    )
+
+    LaunchedEffect(cameraPositionState) {
+
+        snapshotFlow {
+            if (mapLoaded && !cameraPositionState.isMoving) {
+                cameraPositionState.position
+            } else {
+                null
+            }
+        }.collectLatest { idlePosition ->
+
+            if (idlePosition == null) {
+                return@collectLatest
+            }
+
+            delay(500L)
+
+            if (cameraPositionState.isMoving) {
+                return@collectLatest
+            }
+
+            val bounds = cameraPositionState.projection
+                ?.visibleRegion
+                ?.latLngBounds
+                ?: return@collectLatest
+
+            if (bounds.southwest.longitude >
+                bounds.northeast.longitude
+            ) {
+                return@collectLatest
+            }
+
+            currentOnViewportReady(
+                MapBounds(
+                    south = bounds.southwest.latitude,
+                    west = bounds.southwest.longitude,
+                    north = bounds.northeast.latitude,
+                    east = bounds.northeast.longitude
+                )
+            )
+        }
+    }
 // LaunchedEffect thực hiện tác vụ coroutine trong Compose khi key thay đổi.
     LaunchedEffect(mapLoaded, locationRequestId) {
         if (

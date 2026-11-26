@@ -1,4 +1,4 @@
-package com.cityguard.backend.dto.response;
+package com.cityguard.backend.dto.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,4 +40,9 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> failure(String message) {
         return ApiResponse.<T>builder().success(false).message(message).data(null).build();
     }
+
+    public static <T> ApiResponse<T> failure(String message, T data) {
+        return ApiResponse.<T>builder().success(false).message(message).data(data).build();
+    }
 }
+
