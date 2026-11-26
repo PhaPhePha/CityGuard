@@ -2,7 +2,7 @@ spring:
   application:
     name: backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cityguard_db}
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://localhost:5432/cityguard_db}}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
@@ -13,8 +13,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  config: 
-   import: optional:file:.env[.properties]
+  config:
+    import: optional:file:.env[.properties]
 
 server:
   port: 8080
