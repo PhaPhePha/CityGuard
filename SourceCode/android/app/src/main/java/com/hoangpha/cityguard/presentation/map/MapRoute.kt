@@ -98,6 +98,10 @@ fun MapRoute(
         onSelectReport = mapViewModel::selectReport,
         locationUiState = locationViewModel.uiState,
         hasLocationPermission = hasLocationPermission,
+        onRetry = mapViewModel::retry,
+        onViewportReady = mapViewModel::onViewportReady,
+        filters = mapViewModel.filters,
+        onFiltersApplied = mapViewModel::applyFilters,
         onLocationClick = {
             if (context.hasLocationPermission()) {
                 hasLocationPermission = true

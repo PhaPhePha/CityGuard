@@ -8,7 +8,8 @@ sealed interface MapUiState {
 
     data class Success(
         val reports: List<ReportSummary>,
-        val selectedReportId: String? = null
+        val selectedReportId: String? = null,
+        val isRefreshing: Boolean = false
     ) : MapUiState {
         val selectedReport: ReportSummary?
             get() = reports.firstOrNull{
