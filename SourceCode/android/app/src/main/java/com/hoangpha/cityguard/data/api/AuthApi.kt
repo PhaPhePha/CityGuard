@@ -5,11 +5,24 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 // Dữ liệu gửi lên
-data class LoginRequest(val username: String, val password: String)
-data class RegisterRequest(val username: String, val email: String, val password: String)
+data class LoginRequest(val account: String, val password: String)
+data class RegisterRequest(val username: String, val email: String, val password: String,val displayName: String)
 
 // Dữ liệu trả về
-data class AuthResponse(val token: String, val userId: String, val username: String)
+data class AuthResponse(
+    val accessToken: String,
+    val refreshToken: String,
+    val tokenType: String,
+    val expiresIn: Long,
+    val userInfo: UserInfo
+)
+data class UserInfo(
+    val id: Long,
+    val username: String,
+    val email: String,
+    val displayName: String,
+    val role: String
+)
 data class ApiResponse<T>(val success: Boolean, val message: String?, val data: T?)
 
 interface AuthApi {

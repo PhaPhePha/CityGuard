@@ -9,8 +9,46 @@ import com.hoangpha.cityguard.domain.repository.ReportRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.time.Instant
+import com.hoangpha.cityguard.domain.repository.MapReportRepository
 
-class ApiReportRepository(private val api: ReportApi) : ReportRepository {
+class ApiReportRepository(private val api: ReportApi) : ReportRepository,MapReportRepository {
+    private val supportedMapTypes = setOf(
+        "TRAFFIC_JAM",
+        "FLOOD",
+        "ROAD_DAMAGE",
+        "ROAD_BLOCK"
+    )
+    override suspend fun getReportsForMap(
+        bbox: String?,
+        type: String?,
+        status: String?
+    ): List<Report> {
+
+        val response = api.list(
+            bbox = bbox,
+            type = type,
+            status = status
+        )
+
+        if (!response.isSuccessful) {
+            error("Report API error: ${response.code()}")
+        }
+
+        val body = response.body()
+            ?: error("Report API returned empty body")
+
+        if (!body.success) {
+            error("Report API request failed")
+        }
+
+        val reports = body.data
+            ?: error("Report API returned missing data")
+
+        return reports
+            .filter { it.type in supportedMapTypes }
+            .map(::toDomain)
+    }
+
     override val reports: Flow<List<Report>> = flow { emit(requireReports(api.list()).map(::toDomain)) }
 
     override fun observeReport(id: String): Flow<Report?> = flow {
@@ -50,4 +88,5 @@ class ApiReportRepository(private val api: ReportApi) : ReportRepository {
         val minutes = ((System.currentTimeMillis() - Instant.parse(this).toEpochMilli()) / 60_000).coerceAtLeast(0)
         when { minutes < 1 -> "Vừa xong"; minutes < 60 -> "$minutes phút trước"; else -> "${minutes / 60} giờ trước" }
     }.getOrDefault("Vừa xong")
+
 }

@@ -19,7 +19,7 @@ data class VoteDto(val type: String)
 data class CommentRequestDto(val content: String)
 
 interface ReportApi {
-    @GET("api/v1/reports") suspend fun list(@Query("bbox") bbox: String? = null, @Query("type") type: String? = null): Response<ApiResponse<List<ReportDto>>>
+    @GET("api/v1/reports") suspend fun list(@Query("bbox") bbox: String? = null, @Query("type") type: String? = null,@Query("status") status: String? = null): Response<ApiResponse<List<ReportDto>>>
     @GET("api/v1/reports/{id}") suspend fun detail(@Path("id") id: String): Response<ApiResponse<ReportDto>>
     @GET("api/v1/reports/mine") suspend fun mine(): Response<ApiResponse<List<ReportDto>>>
     @POST("api/v1/reports") suspend fun create(@Body request: CreateReportDto): Response<ApiResponse<ReportDto>>
