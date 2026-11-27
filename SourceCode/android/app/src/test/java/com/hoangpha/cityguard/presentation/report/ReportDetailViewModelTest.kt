@@ -73,4 +73,24 @@ class ReportDetailViewModelTest {
         assertEquals("Vẫn còn kẹt", vm.uiState.value.report!!.comments.last().content)
         assertEquals("", vm.uiState.value.commentText)
     }
+
+    // TV2 tích hợp TV4: mở detail từ My Reports khi backend tắt không được ném exception làm crash app.
+    @Test
+    fun networkErrorShowsRetryAndRetryCanLoadAgain() = runTest {
+        var offline = true
+        val repository = object : com.hoangpha.cityguard.domain.repository.ReportRepository by FakeReportRepository {
+            override fun observeReport(id: String) = kotlinx.coroutines.flow.flow<com.hoangpha.cityguard.domain.model.Report?> {
+                if (offline) throw java.io.IOException("offline")
+                emit(null)
+            }
+        }
+        val vm = ReportDetailViewModel(SavedStateHandle(mapOf("reportId" to "example")), repository)
+        assertFalse(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.notFound)
+        assertTrue(vm.uiState.value.errorMessage != null)
+        offline = false
+        vm.load()
+        assertTrue(vm.uiState.value.notFound)
+        assertEquals(null, vm.uiState.value.errorMessage)
+    }
 }

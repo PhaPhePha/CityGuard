@@ -1,5 +1,7 @@
 package com.hoangpha.cityguard.ui.auth
 
+// TV2 - Trần Hữu Thịnh: Giữ giao diện gốc; bỏ kiểm tra token khác rỗng vì MainActivity đã kiểm tra cả thời hạn của phiên.
+
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
@@ -24,16 +26,6 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
-    LaunchedEffect(Unit) {
-        delay(1500)
-        val token = sessionManager.getToken()
-        if (!token.isNullOrBlank()) {
-            navController.navigate("main") {
-                popUpTo("splash") { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
 
     Box(
         modifier = Modifier

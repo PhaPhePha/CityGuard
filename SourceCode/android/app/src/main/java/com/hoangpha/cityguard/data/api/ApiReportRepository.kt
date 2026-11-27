@@ -1,5 +1,7 @@
 package com.hoangpha.cityguard.data.api
 
+// TV2 - Trần Hữu Thịnh: Tích hợp TV2 vào repository chung: sửa myReports theo data.items/hasNext và phân biệt 404 với lỗi tải detail.
+
 import com.hoangpha.cityguard.domain.model.Comment
 import com.hoangpha.cityguard.domain.model.IncidentCategory
 import com.hoangpha.cityguard.domain.model.Report
@@ -53,7 +55,8 @@ class ApiReportRepository(private val api: ReportApi) : ReportRepository,MapRepo
 
     override fun observeReport(id: String): Flow<Report?> = flow {
         val response = api.detail(id)
-        emit(if (response.isSuccessful) response.body()?.data?.let(::toDomain) else null)
+        // TV2 tích hợp TV4: chỉ HTTP 404 mới là không tìm thấy; lỗi mạng/5xx đi vào trạng thái lỗi.
+        emit(if (response.code() == 404) null else toDomain(requireApiData(response)))
     }
 
     override suspend fun createReport(newReport: NewReport): Report = toDomain(requireReport(api.create(CreateReportDto(
@@ -63,7 +66,16 @@ class ApiReportRepository(private val api: ReportApi) : ReportRepository,MapRepo
 
     override suspend fun vote(reportId: String, type: VoteType) { requireReport(api.vote(reportId, VoteDto(type.name))) }
     override suspend fun addComment(reportId: String, content: String) { requireReport(api.comment(reportId, CommentRequestDto(content))) }
-    override suspend fun myReports(): List<Report> = requireReports(api.mine()).map(::toDomain)
+    // TV2 tích hợp: giữ interface chung của TV4, nhưng đọc đúng endpoint phân trang và gom các trang cho caller cũ.
+    override suspend fun myReports(): List<Report> {
+        val result = mutableListOf<Report>()
+        var page = 0
+        do {
+            val data = requireApiData(api.mine(page = page++))
+            result.addAll(data.items.map(::toDomain))
+        } while (data.hasNext)
+        return result.distinctBy { it.id }
+    }
 
     private fun requireReport(response: retrofit2.Response<ApiResponse<ReportDto>>): ReportDto {
         if (!response.isSuccessful) error("API error ${response.code()}")

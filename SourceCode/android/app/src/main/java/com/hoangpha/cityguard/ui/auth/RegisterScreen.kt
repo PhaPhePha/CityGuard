@@ -1,5 +1,7 @@
 package com.hoangpha.cityguard.ui.auth
 
+// TV2 - Trần Hữu Thịnh: Giữ form gốc; đăng ký xong trở về Login, không tự tạo phiên đăng nhập.
+
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +22,12 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,8 +51,8 @@ fun RegisterScreen(
     navController: NavController,
     authViewModel: AuthController = viewModel<AuthViewModel>()
 ) {
-    var username by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -52,15 +60,28 @@ fun RegisterScreen(
 
     val authState by authViewModel.authState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val isLoading = authState is AuthState.Loading
+    val keyboard = LocalSoftwareKeyboardController.current
+    // TV2: Back hủy request đang chờ, tránh một form đã đóng vẫn nhận kết quả và tự chuyển màn.
+    fun goBack() {
+        authViewModel.cancelPending()
+        navController.popBackStack()
+    }
+    BackHandler(enabled = isLoading) { goBack() }
 
     LaunchedEffect(authState) {
         when (val state = authState) {
-            is AuthState.Success -> {
-                navController.navigate("main") {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+            is AuthState.Registered -> {
+                authViewModel.resetState()
+                // TV2: bỏ form đăng ký khỏi back stack; chỉ chuyển username và thông báo, không chuyển mật khẩu/JWT.
+                navController.navigate("login") {
+                    popUpTo(navController.graph.id) { inclusive = false }
                     launchSingleTop = true
                 }
-                authViewModel.resetState()
+                navController.currentBackStackEntry?.savedStateHandle?.apply {
+                    set("registered_account", state.account)
+                    set("registration_message", "Đăng ký thành công. Vui lòng đăng nhập.")
+                }
             }
             is AuthState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
@@ -76,7 +97,7 @@ fun RegisterScreen(
             .background(CityGuardYellowLight)
     ) {
         IconButton(
-            onClick = { navController.popBackStack() },
+            onClick = { goBack() },
             modifier = Modifier.align(Alignment.TopStart).zIndex(1f).systemBarsPadding().padding(start = 8.dp, top = 4.dp)
         ) {
             Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
@@ -101,7 +122,6 @@ fun RegisterScreen(
             )
         )
 
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
 
         Column(
             modifier = Modifier
@@ -142,13 +162,14 @@ fun RegisterScreen(
                     Text("Tên đăng nhập", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
-                    value = username, onValueChange = { username = it },
+                    value = username, readOnly = isLoading, onValueChange = { username = it },
                     placeholder = { Text("Nhập tên đăng nhập", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("register_username"), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -160,14 +181,14 @@ fun RegisterScreen(
                     Text("Email", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
-                    value = email, onValueChange = { email = it },
+                    value = email, readOnly = isLoading, onValueChange = { email = it },
                     placeholder = { Text("Nhập email", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("register_email"), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -179,15 +200,15 @@ fun RegisterScreen(
                     Text("Mật khẩu", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it },
+                    value = password, readOnly = isLoading, onValueChange = { password = it },
                     placeholder = { Text("Nhập mật khẩu", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("register_password"), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                     trailingIcon = {
                         val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -205,15 +226,18 @@ fun RegisterScreen(
                     Text("Nhập lại mật khẩu", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
-                    value = confirmPass, onValueChange = { confirmPass = it },
+                    value = confirmPass, readOnly = isLoading, onValueChange = { confirmPass = it },
                     placeholder = { Text("Nhập lại mật khẩu", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("register_confirm"), shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
                     visualTransformation = if (confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (!isLoading) { keyboard?.hide(); authViewModel.register(username, email, password, confirmPass) }
+                    }),
                     trailingIcon = {
                         IconButton(onClick = { confirmVisible = !confirmVisible }) {
                             Icon(if (confirmVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
@@ -226,20 +250,11 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Nút Đăng ký
-            if (authState is AuthState.Loading) {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = CityGuardBlack)
-                }
-            } else {
-                Button(
-                    onClick = { authViewModel.register(username, email, password, confirmPass) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CityGuardBlack),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Text("ĐĂNG KÝ", color = CityGuardWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+            // TV2: giữ nút 52dp khi gửi; spinner nhỏ + khóa bấm lặp, không thay cả nút bằng vòng tròn.
+            AuthSubmitButton("ĐĂNG KÝ", "Đang đăng ký…", isLoading, "register_submit") {
+                keyboard?.hide()
+                snackbarHostState.currentSnackbarData?.dismiss()
+                authViewModel.register(username, email, password, confirmPass)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -248,12 +263,25 @@ fun RegisterScreen(
                 Text("Đã có tài khoản? ", color = CityGuardBlack, fontSize = 14.sp)
                 Text(
                     text = "Đăng nhập",
-                    modifier = Modifier.clickable { navController.popBackStack() },
+                    modifier = Modifier.clickable(enabled = !isLoading) {
+                        // TV2: đăng ký mở từ Splash cũng phải tới đúng Login, không pop nhầm về Splash.
+                        authViewModel.resetState()
+                        navController.navigate("login") {
+                            popUpTo("register") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                     color = CityGuardBlack, fontSize = 14.sp, fontWeight = FontWeight.Bold
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
         }
+        // TV2: vẽ thông báo sau form, trên các nội dung khác và ngoài vùng thanh điều hướng/bàn phím.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp).zIndex(2f)
+        )
     }
 }

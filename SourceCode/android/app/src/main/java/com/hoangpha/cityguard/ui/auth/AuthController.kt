@@ -9,5 +9,7 @@ interface AuthController {
     fun login(username: String, password: String)
     fun register(username: String, email: String, password: String, confirmPass: String)
     fun logout(onComplete: () -> Unit = {})
+    // TV2: form chủ động hủy request khi Back; default giữ tương thích controller test/caller cũ.
+    fun cancelPending() {}
     fun resetState()
 }

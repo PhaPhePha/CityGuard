@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- TV2 - Trần Hữu Thịnh: Android 17/target 37 cần quyền mạng nội bộ để gọi
+         backend local (10.0.2.2 hoặc IP LAN). Chỉ thêm cho debug; release dùng HTTPS công khai. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+</manifest>

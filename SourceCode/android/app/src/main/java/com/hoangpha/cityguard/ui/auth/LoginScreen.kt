@@ -1,5 +1,7 @@
 package com.hoangpha.cityguard.ui.auth
 
+// TV2 - Trần Hữu Thịnh: Giữ nguyên bố cục/ảnh/màu gốc; giữ nút gửi khi loading, khôi phục màn Quên mật khẩu và tương tác ba nút mạng xã hội.
+
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
@@ -22,6 +24,12 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,23 +55,40 @@ fun LoginScreen(
     navController: NavController,
     authViewModel: AuthController = viewModel<AuthViewModel>()
 ) {
-    var username by remember { mutableStateOf("") }
+    // TV2: sau Register chỉ điền sẵn tài khoản, user vẫn phải nhập mật khẩu để đăng nhập.
+    val loginEntry = remember { navController.currentBackStackEntry }
+    var username by rememberSaveable { mutableStateOf(loginEntry?.savedStateHandle?.get<String>("registered_account").orEmpty()) }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     val authState by authViewModel.authState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val isLoading = authState is AuthState.Loading
+    val keyboard = LocalSoftwareKeyboardController.current
+    // TV2: Back hủy request đang chờ, tránh một form đã đóng vẫn nhận kết quả và tự chuyển màn.
+    fun goBack() {
+        authViewModel.cancelPending()
+        navController.popBackStack()
+    }
+    BackHandler(enabled = isLoading) { goBack() }
+    // TV2: ba nút có tương tác thật; chưa có OAuth backend nên chỉ thông báo rõ, không giả đăng nhập thành công.
+    var selectedProvider by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        loginEntry?.savedStateHandle?.remove<String>("registered_account")
+        loginEntry?.savedStateHandle?.remove<String>("registration_message")?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
+                authViewModel.resetState()
                 navController.navigate("main") {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                    popUpTo(navController.graph.id) { inclusive = false }
                     launchSingleTop = true
                 }
-                snackbarHostState.showSnackbar("Đăng nhập thành công!")
-                authViewModel.resetState()
             }
             is AuthState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
@@ -80,7 +105,7 @@ fun LoginScreen(
     ) {
         val compact = maxHeight < 740.dp
         IconButton(
-            onClick = { navController.popBackStack() },
+            onClick = { goBack() },
             modifier = Modifier.align(Alignment.TopStart).zIndex(1f).systemBarsPadding().padding(start = 8.dp, top = 4.dp)
         ) {
             Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
@@ -105,7 +130,6 @@ fun LoginScreen(
             )
         )
 
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
 
         Column(
             modifier = Modifier
@@ -152,13 +176,15 @@ fun LoginScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = CityGuardBlack)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Tên đăng nhập", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
+                    Text("Tên đăng nhập hoặc email", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CityGuardBlack)
                 }
                 OutlinedTextField(
                     value = username,
+                    readOnly = isLoading,
                     onValueChange = { username = it },
-                    placeholder = { Text("Nhập tên đăng nhập", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    placeholder = { Text("Nhập tên đăng nhập hoặc email", color = Color.Gray, fontSize = 14.sp) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("login_account"),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
@@ -177,16 +203,20 @@ fun LoginScreen(
                 }
                 OutlinedTextField(
                     value = password,
+                    readOnly = isLoading,
                     onValueChange = { password = it },
                     placeholder = { Text("Nhập mật khẩu", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("login_password"),
                     shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = CityGuardWhite, unfocusedContainerColor = CityGuardWhite,
                         focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent
                     ),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (!isLoading) { keyboard?.hide(); authViewModel.login(username, password) }
+                    }),
                     trailingIcon = {
                         val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -198,8 +228,10 @@ fun LoginScreen(
 
                 Text(
                     text = "Quên mật khẩu?",
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable {
-                        navController.navigate("forgot_password")
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable(enabled = !isLoading) {
+                        // TV2: khôi phục điều hướng theo yêu cầu; API đổi mật khẩu là phần tích hợp riêng với TV5.
+                        authViewModel.resetState()
+                        navController.navigate("forgot_password") { launchSingleTop = true }
                     },
                     color = CityGuardBlack, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End
                 )
@@ -207,20 +239,11 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Nút Đăng nhập
-            if (authState is AuthState.Loading) {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = CityGuardBlack)
-                }
-            } else {
-                Button(
-                    onClick = { authViewModel.login(username, password) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CityGuardBlack),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Text("ĐĂNG NHẬP", color = CityGuardWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+            // TV2: vòng tải nằm TRONG nút; form không nhảy khi bắt đầu/kết thúc request.
+            AuthSubmitButton("ĐĂNG NHẬP", "Đang đăng nhập…", isLoading, "login_submit") {
+                keyboard?.hide()
+                snackbarHostState.currentSnackbarData?.dismiss()
+                authViewModel.login(username, password)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -234,7 +257,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
                 OutlinedButton(
-                    onClick = {}, enabled = false,
+                    onClick = { selectedProvider = "Google" }, enabled = !isLoading,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Google" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -245,7 +268,7 @@ fun LoginScreen(
                 }
                 // nút Facebook
                 OutlinedButton(
-                    onClick = {}, enabled = false,
+                    onClick = { selectedProvider = "Facebook" }, enabled = !isLoading,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Facebook" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -256,7 +279,7 @@ fun LoginScreen(
                 }
                 // nút Ig
                 OutlinedButton(
-                    onClick = {}, enabled = false,
+                    onClick = { selectedProvider = "Instagram" }, enabled = !isLoading,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Instagram" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -273,12 +296,28 @@ fun LoginScreen(
                 Text("Chưa có tài khoản? ", color = CityGuardBlack, fontSize = 15.sp)
                 Text(
                     text = "Đăng ký",
-                    modifier = Modifier.clickable { navController.navigate("register") },
+                    modifier = Modifier.clickable(enabled = !isLoading) { authViewModel.resetState(); navController.navigate("register") { launchSingleTop = true } },
                     color = CityGuardBlack, fontSize = 15.sp, fontWeight = FontWeight.Bold
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
         }
+        // TV2: vẽ thông báo sau form, trên các nội dung khác và ngoài vùng thanh điều hướng/bàn phím.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp).zIndex(2f)
+        )
     }
+    selectedProvider?.let { provider ->
+        AlertDialog(
+            onDismissRequest = { selectedProvider = null },
+            title = { Text("Đăng nhập bằng $provider") },
+            text = { Text("Đăng nhập bằng $provider chưa khả dụng. Bạn có thể dùng tên đăng nhập hoặc email và mật khẩu CityGuard.") },
+            // TV2: chỉ một nút đóng; tạo tài khoản dùng link Đăng ký có sẵn trên Login, không thêm nhánh trùng.
+            confirmButton = { TextButton(onClick = { selectedProvider = null }) { Text("Đã hiểu") } }
+        )
+    }
+
 }

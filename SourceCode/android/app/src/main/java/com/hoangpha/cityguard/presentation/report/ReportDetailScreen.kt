@@ -84,7 +84,9 @@ fun ReportDetailRoute(
         onBack = onBack,
         onVote = viewModel::vote,
         onCommentChanged = viewModel::onCommentChanged,
-        onSendComment = viewModel::sendComment
+        onSendComment = viewModel::sendComment,
+        // TV2 tích hợp TV4: nối nút retry của trạng thái lỗi, giữ màn detail hiện có.
+        onRetry = viewModel::load
     )
 }
 
@@ -96,7 +98,8 @@ fun ReportDetailScreen(
     onVote: (VoteType) -> Unit,
     onCommentChanged: (String) -> Unit,
     onSendComment: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onRetry: () -> Unit = {} // TV2: default giữ tương thích các preview/caller cũ của TV4.
 ) {
     val report = state.report
 
@@ -104,6 +107,19 @@ fun ReportDetailScreen(
         state.isLoading -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
+            }
+        }
+
+        // TV2 - Thịnh: thêm riêng trạng thái lỗi tải từ My Reports; không đổi UI khi report tải thành công.
+        state.errorMessage != null && report == null -> {
+            Column(
+                modifier = modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Không tải được báo cáo", style = MaterialTheme.typography.titleMedium)
+                Text(state.errorMessage, color = MaterialTheme.colorScheme.error)
+                Button(onClick = onRetry) { Text("Thử lại") }
+                TextButton(onClick = onBack) { Text("Quay lại") }
             }
         }
 

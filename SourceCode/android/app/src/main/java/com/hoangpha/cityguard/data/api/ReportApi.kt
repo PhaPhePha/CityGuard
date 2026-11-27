@@ -1,5 +1,7 @@
 package com.hoangpha.cityguard.data.api
 
+// TV2 - Trần Hữu Thịnh: Tích hợp TV2 với API chung: chỉ sửa mine sang /me/reports và response phân trang. Create/vote/comment giữ nguyên.
+
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -21,7 +23,7 @@ data class CommentRequestDto(val content: String)
 interface ReportApi {
     @GET("api/v1/reports") suspend fun list(@Query("bbox") bbox: String? = null, @Query("type") type: String? = null,@Query("status") status: String? = null): Response<ApiResponse<List<ReportDto>>>
     @GET("api/v1/reports/{id}") suspend fun detail(@Path("id") id: String): Response<ApiResponse<ReportDto>>
-    @GET("api/v1/reports/mine") suspend fun mine(): Response<ApiResponse<List<ReportDto>>>
+    @GET("api/v1/me/reports") suspend fun mine(@Query("page") page: Int = 0, @Query("size") size: Int = 50): Response<ApiResponse<PageDto<ReportDto>>>
     @POST("api/v1/reports") suspend fun create(@Body request: CreateReportDto): Response<ApiResponse<ReportDto>>
     @POST("api/v1/reports/{id}/vote") suspend fun vote(@Path("id") id: String, @Body request: VoteDto): Response<ApiResponse<ReportDto>>
     @POST("api/v1/reports/{id}/comments") suspend fun comment(@Path("id") id: String, @Body request: CommentRequestDto): Response<ApiResponse<ReportDto>>
