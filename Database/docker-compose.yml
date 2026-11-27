@@ -1,0 +1,65 @@
+name: cityguard-database-v3
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: cityguard-v3-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CITYGUARD_DB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${CITYGUARD_DB_NAME:-cityguard_v3_dev}
+      POSTGRES_USER: ${CITYGUARD_DB_USER:-cityguard}
+      POSTGRES_PASSWORD: ${CITYGUARD_DB_PASSWORD:?Please copy .env.example to .env and set CITYGUARD_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - cityguard_v3_pgdata:/var/lib/postgresql/data
+      # NOTE: /docker-entrypoint-initdb.d scripts execute ONLY when the volume is empty (first init).
+      - ./migrations/V1__initial_schema.sql:/docker-entrypoint-initdb.d/01_V1__initial_schema.sql:ro
+      - ./preflight-upgrade.sql:/docker-entrypoint-initdb.d/02_preflight_upgrade.sql:ro
+      - ./migrations/V2__metrics_tokens_request_keys.sql:/docker-entrypoint-initdb.d/03_V2__metrics_tokens_request_keys.sql:ro
+      - ./preflight-v3.sql:/docker-entrypoint-initdb.d/04_preflight_v3.sql:ro
+      - ./migrations/V3__report_public_id_ulid.sql:/docker-entrypoint-initdb.d/05_V3__report_public_id_ulid.sql:ro
+      - ./verify-v3.sql:/docker-entrypoint-initdb.d/06_verify_v3.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -h 127.0.0.1 -p 5432 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  seed-demo:
+    image: postgres:17-alpine
+    container_name: cityguard-v3-seed-demo
+    profiles:
+      - demo
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${CITYGUARD_DB_NAME:-cityguard_v3_dev}
+      PGUSER: ${CITYGUARD_DB_USER:-cityguard}
+      PGPASSWORD: ${CITYGUARD_DB_PASSWORD:?Please copy .env.example to .env and set CITYGUARD_DB_PASSWORD}
+      PGCLIENTENCODING: UTF8
+    volumes:
+      - ./seed.sql:/seed/seed.sql:ro
+      - ./verify-v3.sql:/seed/verify-v3.sql:ro
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        echo "Applying CityGuard V3 demo seed data to $${PGDATABASE}..."
+        psql -X -v ON_ERROR_STOP=1 -f /seed/seed.sql
+        echo "Verifying CityGuard V3 schema and constraints after seed..."
+        psql -X -v ON_ERROR_STOP=1 -f /seed/verify-v3.sql
+        echo "Demo seed and verification completed successfully."
+
+volumes:
+  cityguard_v3_pgdata:
+    name: cityguard_v3_pgdata
