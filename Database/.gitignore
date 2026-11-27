@@ -1,0 +1,23 @@
+# Local environment secrets (NEVER commit .env or real passwords)
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+
+# PostgreSQL data volumes, dumps, and backups
+pgdata/
+postgres-data/
+data/
+backups/
+*.backup
+*.dump
+*.sql.gz
+*.tar
+
+# Temporary and compiled artifacts
+*.tmp
+*.log
+*.class
+__pycache__/
+*.py[cod]
