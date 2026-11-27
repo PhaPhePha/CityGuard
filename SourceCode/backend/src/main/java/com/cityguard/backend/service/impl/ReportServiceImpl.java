@@ -1,20 +1,11 @@
 package com.cityguard.backend.service.impl;
 
-import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
+import com.cityguard.backend.dto.comment.CommentResponse;
 import com.cityguard.backend.dto.report.CreateReportRequest;
 import com.cityguard.backend.dto.report.ReportResponse;
 import com.cityguard.backend.dto.report.VoteRequest;
 import com.cityguard.backend.entity.Category;
+import com.cityguard.backend.entity.Comment;
 import com.cityguard.backend.entity.Report;
 import com.cityguard.backend.entity.ReportMetrics;
 import com.cityguard.backend.entity.ReportVote;
@@ -25,44 +16,66 @@ import com.cityguard.backend.enums.ReportType;
 import com.cityguard.backend.enums.TrustLabel;
 import com.cityguard.backend.exception.AppException;
 import com.cityguard.backend.repository.CategoryRepository;
+import com.cityguard.backend.repository.CommentRepository;
 import com.cityguard.backend.repository.ReportMetricsRepository;
 import com.cityguard.backend.repository.ReportRepository;
 import com.cityguard.backend.repository.ReportVoteRepository;
-import com.cityguard.backend.repository.UserRepository;
 import com.cityguard.backend.security.SecurityUtils;
 import com.cityguard.backend.service.ReportService;
 import com.github.f4b6a3.ulid.UlidCreator;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * Triển khai ReportService kết nối cơ sở dữ liệu PostgreSQL thực tế (theo
- * NFR-MAINT-01 & WBS Task 4.3.1).
+ * Triển khai ReportService kết nối cơ sở dữ liệu PostgreSQL thực tế (theo NFR-MAINT-01 & WBS Task 4.3.1).
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
 
+    private static final double EARTH_RADIUS_KM = 6371.0;
+
     private final ReportRepository reportRepository;
     private final ReportMetricsRepository reportMetricsRepository;
     private final ReportVoteRepository reportVoteRepository;
     private final CategoryRepository categoryRepository;
-    private final UserRepository userRepository;
+    private final CommentRepository commentRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReportResponse> getReports(String bbox, ReportType type, ReportStatus status) {
+    public List<ReportResponse> getReports(
+            String bbox,
+            ReportType type,
+            ReportStatus status,
+            String sort,
+            Double userLat,
+            Double userLng
+    ) {
         List<ReportStatus> statuses;
         if (status != null) {
+            if (status == ReportStatus.HIDDEN && !isCurrentUserAdminOrModerator()) {
+                throw new AppException(ErrorCode.FORBIDDEN, "Bạn không có quyền xem các báo cáo đã bị ẩn");
+            }
             statuses = List.of(status);
         } else {
-            // Mặc định lọc các trạng thái còn hiển thị trên bản đồ (theo DacTaKyThuat Trang
-            // 4 Mục 2.2)
+            // Mặc định lọc các trạng thái còn hiển thị trên bản đồ (theo DacTaKyThuat Trang 4 Mục 2.2)
             statuses = List.of(ReportStatus.PENDING_VERIFY, ReportStatus.ACTIVE);
         }
 
@@ -102,7 +115,19 @@ public class ReportServiceImpl implements ReportService {
                 minLat,
                 maxLat,
                 minLng,
-                maxLng);
+                maxLng
+        );
+
+        if ("nearby".equalsIgnoreCase(sort) && userLat != null && userLng != null) {
+            reports = reports.stream()
+                    .sorted(Comparator.comparingDouble(r ->
+                            calculateHaversineDistanceKm(userLat, userLng, r.getLatitude(), r.getLongitude())))
+                    .toList();
+        } else {
+            reports = reports.stream()
+                    .sorted(Comparator.comparing(Report::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .toList();
+        }
 
         Long currentUserId = SecurityUtils.getCurrentUserId().orElse(null);
         Map<Long, String> userVotes = Collections.emptyMap();
@@ -114,7 +139,7 @@ public class ReportServiceImpl implements ReportService {
 
         final Map<Long, String> votesMap = userVotes;
         return reports.stream()
-                .map(r -> mapToReportResponse(r, votesMap.get(r.getId())))
+                .map(r -> mapToReportResponse(r, votesMap.get(r.getId()), false))
                 .toList();
     }
 
@@ -122,6 +147,10 @@ public class ReportServiceImpl implements ReportService {
     @Transactional(readOnly = true)
     public ReportResponse getReportById(String id) {
         Report report = findReportByIdOrPublicId(id);
+
+        if (report.getStatus() == ReportStatus.HIDDEN && !isCurrentUserAdminOrModerator()) {
+            throw new AppException(ErrorCode.REPORT_NOT_FOUND);
+        }
 
         Long currentUserId = SecurityUtils.getCurrentUserId().orElse(null);
         String userVote = null;
@@ -131,7 +160,7 @@ public class ReportServiceImpl implements ReportService {
                     .orElse(null);
         }
 
-        return mapToReportResponse(report, userVote);
+        return mapToReportResponse(report, userVote, true);
     }
 
     @Override
@@ -153,7 +182,7 @@ public class ReportServiceImpl implements ReportService {
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND,
                         "Không tìm thấy danh mục sự cố: " + categoryCode));
 
-        UUID clientRequestId = request.getClientRequestId() != null ? request.getClientRequestId() : UUID.randomUUID();
+        UUID clientRequestId = parseOrGenerateUuid(request.getClientRequestId());
 
         // Kiểm tra Idempotency theo client_request_id (BanGiaoDB_V2 Mục 7.1)
         Optional<Report> existingOpt = reportRepository.findByClientRequestId(clientRequestId);
@@ -164,7 +193,7 @@ public class ReportServiceImpl implements ReportService {
                 boolean sameLat = Math.abs(existing.getLatitude() - request.getLatitude()) < 0.0001;
                 boolean sameLng = Math.abs(existing.getLongitude() - request.getLongitude()) < 0.0001;
                 if (sameCategory && sameLat && sameLng) {
-                    return mapToReportResponse(existing, null);
+                    return mapToReportResponse(existing, null, false);
                 } else {
                     throw new AppException(ErrorCode.RESOURCE_CONFLICT,
                             "Yêu cầu bị trùng client_request_id với nội dung khác");
@@ -202,8 +231,7 @@ public class ReportServiceImpl implements ReportService {
 
         report = reportRepository.save(report);
 
-        // Khởi tạo ReportMetrics ban đầu (confirmCount = 0, noLongerCount = 0,
-        // trustLabel = PENDING_VERIFY)
+        // Khởi tạo ReportMetrics ban đầu (confirmCount = 0, noLongerCount = 0, trustLabel = PENDING_VERIFY)
         ReportMetrics metrics = ReportMetrics.builder()
                 .report(report)
                 .confirmCount(0L)
@@ -215,7 +243,7 @@ public class ReportServiceImpl implements ReportService {
         reportMetricsRepository.save(metrics);
         report.setReportMetrics(metrics);
 
-        return mapToReportResponse(report, null);
+        return mapToReportResponse(report, null, false);
     }
 
     @Override
@@ -240,17 +268,23 @@ public class ReportServiceImpl implements ReportService {
         }
         voteType = voteType.toUpperCase();
 
-        // Kiểm tra vote của user trên report này
-        Optional<ReportVote> existingVoteOpt = reportVoteRepository.findByReportIdAndUserId(report.getId(),
-                currentUser.getId());
+        // Kiểm tra vote của user trên report này (hỗ trợ Toggle / Hủy vote nếu bấm lại cùng loại)
+        String effectiveUserVote = voteType;
+        Optional<ReportVote> existingVoteOpt = reportVoteRepository.findByReportIdAndUserId(
+                report.getId(), currentUser.getId());
+
         if (existingVoteOpt.isPresent()) {
             ReportVote existingVote = existingVoteOpt.get();
-            if (!existingVote.getVoteType().equalsIgnoreCase(voteType)) {
+            if (existingVote.getVoteType().equalsIgnoreCase(voteType)) {
+                // Hủy vote khi người dùng bấm lại đúng loại vote hiện tại
+                reportVoteRepository.delete(existingVote);
+                reportVoteRepository.flush();
+                effectiveUserVote = null;
+            } else {
                 existingVote.setVoteType(voteType);
                 existingVote.setUpdatedAt(OffsetDateTime.now());
                 reportVoteRepository.save(existingVote);
             }
-            // Nếu cùng voteType -> giữ nguyên (Idempotent theo AT-06)
         } else {
             ReportVote newVote = ReportVote.builder()
                     .report(report)
@@ -296,21 +330,20 @@ public class ReportServiceImpl implements ReportService {
         }
         metrics.setConfirmCount(confirmCount);
         metrics.setNoLongerCount(noLongerCount);
-        metrics.setTrustScore(BigDecimal.valueOf(trustScore));
+        metrics.setTrustScore(totalVotes == 0 ? null : BigDecimal.valueOf(trustScore));
         metrics.setTrustLabel(trustLabel.name());
         metrics.setComputedAt(OffsetDateTime.now());
         reportMetricsRepository.save(metrics);
         report.setReportMetrics(metrics);
 
-        // Nếu Report đang PENDING_VERIFY và đã có vote -> chuyển ACTIVE (DacTaKyThuat
-        // Trang 4 Mục 2.2)
+        // Nếu Report đang PENDING_VERIFY và đã có vote -> chuyển ACTIVE (DacTaKyThuat Trang 4 Mục 2.2)
         if (report.getStatus() == ReportStatus.PENDING_VERIFY && totalVotes > 0) {
             report.setStatus(ReportStatus.ACTIVE);
             report.setUpdatedAt(OffsetDateTime.now());
             reportRepository.save(report);
         }
 
-        return mapToReportResponse(report, voteType);
+        return mapToReportResponse(report, effectiveUserVote, true);
     }
 
     @Override
@@ -321,8 +354,10 @@ public class ReportServiceImpl implements ReportService {
                         "Vui lòng đăng nhập để xem danh sách báo cáo của bạn"));
 
         List<Report> reports = reportRepository
-                .findByUserId(currentUser.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent();
-        return reports.stream().map(r -> mapToReportResponse(r, null)).toList();
+                .findByUserId(currentUser.getId(), Pageable.unpaged()).getContent();
+        return reports.stream()
+                .map(r -> mapToReportResponse(r, null, false))
+                .toList();
     }
 
     private Report findReportByIdOrPublicId(String id) {
@@ -340,7 +375,24 @@ public class ReportServiceImpl implements ReportService {
                 .orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_FOUND));
     }
 
-    private ReportResponse mapToReportResponse(Report report, String userVote) {
+    private boolean isCurrentUserAdminOrModerator() {
+        return SecurityUtils.getCurrentUser()
+                .map(User::getRole)
+                .map(role -> "ADMIN".equalsIgnoreCase(role) || "MODERATOR".equalsIgnoreCase(role))
+                .orElse(false);
+    }
+
+    private double calculateHaversineDistanceKm(double lat1, double lng1, double lat2, double lng2) {
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return EARTH_RADIUS_KM * c;
+    }
+
+    private ReportResponse mapToReportResponse(Report report, String userVote, boolean includeComments) {
         ReportType type = null;
         if (report.getCategory() != null && report.getCategory().getCode() != null) {
             try {
@@ -356,12 +408,15 @@ public class ReportServiceImpl implements ReportService {
         int noLongerCount = 0;
 
         if (metrics != null) {
-            if (metrics.getConfirmCount() != null)
+            if (metrics.getConfirmCount() != null) {
                 confirmCount = metrics.getConfirmCount().intValue();
-            if (metrics.getNoLongerCount() != null)
+            }
+            if (metrics.getNoLongerCount() != null) {
                 noLongerCount = metrics.getNoLongerCount().intValue();
-            if (metrics.getTrustScore() != null)
+            }
+            if (metrics.getTrustScore() != null) {
                 trustScore = metrics.getTrustScore().intValue();
+            }
             if (metrics.getTrustLabel() != null) {
                 try {
                     trustLabel = TrustLabel.valueOf(metrics.getTrustLabel());
@@ -380,6 +435,15 @@ public class ReportServiceImpl implements ReportService {
                 ? String.valueOf(report.getUser().getId())
                 : null;
 
+        List<CommentResponse> comments = List.of();
+        if (includeComments) {
+            Long currentUserId = SecurityUtils.getCurrentUserId().orElse(null);
+            comments = commentRepository.findActiveCommentsListByReportId(report.getId())
+                    .stream()
+                    .map(c -> mapToCommentResponse(c, currentUserId))
+                    .toList();
+        }
+
         return ReportResponse.builder()
                 .id(report.getPublicId())
                 .type(type)
@@ -397,7 +461,39 @@ public class ReportServiceImpl implements ReportService {
                 .createdAt(createdAtStr)
                 .expiresAt(expiresAtStr)
                 .creatorId(creatorId)
-                .comments(List.of())
+                .comments(comments)
+                .build();
+    }
+
+    private UUID parseOrGenerateUuid(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return UUID.randomUUID();
+        }
+        String trimmed = raw.trim();
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException ex) {
+            return UUID.nameUUIDFromBytes(trimmed.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private CommentResponse mapToCommentResponse(Comment comment, Long currentUserId) {
+        String createdAtStr = comment.getCreatedAt() != null
+                ? DateTimeFormatter.ISO_INSTANT.format(comment.getCreatedAt().toInstant())
+                : null;
+
+        boolean isOwner = currentUserId != null
+                && comment.getUser() != null
+                && currentUserId.equals(comment.getUser().getId());
+
+        return CommentResponse.builder()
+                .id(String.valueOf(comment.getId()))
+                .authorId(comment.getUser() != null ? String.valueOf(comment.getUser().getId()) : null)
+                .authorName(comment.getUser() != null ? comment.getUser().getDisplayName() : null)
+                .body(comment.getBody())
+                .content(comment.getBody())
+                .createdAt(createdAtStr)
+                .isOwner(isOwner)
                 .build();
     }
 }

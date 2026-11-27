@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
@@ -65,7 +66,7 @@ public class CommentServiceImpl implements CommentService {
             throw new AppException(ErrorCode.INVALID_INPUT, "Nội dung bình luận tối đa 2000 ký tự");
         }
 
-        UUID clientRequestId = request.getClientRequestId() != null ? request.getClientRequestId() : UUID.randomUUID();
+        UUID clientRequestId = parseOrGenerateUuid(request.getClientRequestId());
 
         // Kiểm tra Idempotency theo client_request_id (BanGiaoDB_V2 Mục 7.2)
         Optional<Comment> existingOpt = commentRepository.findByClientRequestId(clientRequestId);
@@ -126,6 +127,18 @@ public class CommentServiceImpl implements CommentService {
                 .orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_FOUND));
     }
 
+    private UUID parseOrGenerateUuid(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return UUID.randomUUID();
+        }
+        String trimmed = raw.trim();
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException ex) {
+            return UUID.nameUUIDFromBytes(trimmed.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     private CommentResponse mapToCommentResponse(Comment comment, Long currentUserId) {
         String createdAtStr = comment.getCreatedAt() != null
                 ? DateTimeFormatter.ISO_INSTANT.format(comment.getCreatedAt().toInstant())
@@ -137,6 +150,7 @@ public class CommentServiceImpl implements CommentService {
                 .id(String.valueOf(comment.getId()))
                 .authorId(String.valueOf(comment.getUser().getId()))
                 .authorName(comment.getUser().getDisplayName())
+                .body(comment.getBody())
                 .content(comment.getBody())
                 .createdAt(createdAtStr)
                 .isOwner(isOwner)

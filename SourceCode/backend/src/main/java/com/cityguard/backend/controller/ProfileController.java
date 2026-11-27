@@ -29,8 +29,8 @@ public class ProfileController {
 
     @GetMapping("/reports")
     @Operation(
-            summary = "Danh sách báo cáo của tôi",
-            description = "Lấy danh sách các báo cáo do tài khoản hiện tại tạo, hỗ trợ lọc theo trạng thái và phân trang"
+            summary = "Danh sách báo cáo của tôi (phân trang)",
+            description = "Lấy danh sách các báo cáo do tài khoản hiện tại tạo, hỗ trợ lọc theo trạng thái và phân trang (trường items)"
     )
     public ResponseEntity<ApiResponse<PageResponse<ReportResponse>>> getMyReports(
             @Parameter(description = "Lọc theo trạng thái báo cáo (ACTIVE, PENDING_VERIFY, EXPIRED...)")
@@ -52,4 +52,3 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success("Lấy thông tin hồ sơ thành công", response));
     }
 }
-
