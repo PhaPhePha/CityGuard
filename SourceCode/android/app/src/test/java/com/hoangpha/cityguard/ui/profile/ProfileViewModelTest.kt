@@ -60,13 +60,26 @@ class ProfileViewModelTest {
         assertNull(vm.state.value.error)
         assertEquals("Thịnh", vm.state.value.profile?.displayName)
     }
+    @Test fun refreshUsesUpdatedNameAndAvatarFromBackend() = runTest(dispatcher) {
+        runCurrent()
+        assertEquals("Thịnh", vm.state.value.profile?.displayName)
+        assertNull(vm.state.value.profile?.avatarUrl)
+        api.profile = api.profile.copy(displayName = "Tên từ Google", avatarUrl = "https://example.com/avatar-new.jpg")
+        vm.load()
+        runCurrent()
+        assertEquals("Tên từ Google", vm.state.value.profile?.displayName)
+        assertEquals("https://example.com/avatar-new.jpg", vm.state.value.profile?.avatarUrl)
+        assertEquals(7L, vm.state.value.profile?.id)
+    }
+
     private class FakeProfileApi : ProfileApi {
+        var profile = ProfileSummaryDto(7, "thinh", "thinh@example.com", "Thịnh", null, "USER", 2, 11)
         var offline = false
         var pending: CompletableDeferred<Response<ApiResponse<ProfileSummaryDto>>>? = null
         override suspend fun summary(): Response<ApiResponse<ProfileSummaryDto>> {
             pending?.let { return it.await() }
             if (offline) throw java.io.IOException("offline")
-            return Response.success(ApiResponse(true, null, ProfileSummaryDto(7, "thinh", "thinh@example.com", "Thịnh", null, "USER", 2, 11)))
+            return Response.success(ApiResponse(true, null, profile))
         }
         override suspend fun reports(page: Int, size: Int, status: String?): Response<ApiResponse<PageDto<ReportDto>>> = error("Not used")
     }

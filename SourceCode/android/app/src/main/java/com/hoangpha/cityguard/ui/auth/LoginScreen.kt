@@ -1,6 +1,6 @@
 package com.hoangpha.cityguard.ui.auth
 
-// TV2 - Trần Hữu Thịnh: Giữ nguyên bố cục/ảnh/màu gốc; giữ nút gửi khi loading, khôi phục màn Quên mật khẩu và tương tác ba nút mạng xã hội.
+// Google/Facebook đổi Firebase ID Token lấy JWT CityGuard
 
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Brush
@@ -26,6 +26,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import com.hoangpha.cityguard.data.api.FirebaseProvider
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -53,9 +59,9 @@ import com.hoangpha.cityguard.ui.theme.*
 @Composable
 fun LoginScreen(
     navController: NavController,
-    authViewModel: AuthController = viewModel<AuthViewModel>()
+    authViewModel: AuthController = viewModel<AuthViewModel>(),
+    socialLoginLauncher: ((FirebaseProvider) -> Unit)? = null
 ) {
-    // TV2: sau Register chỉ điền sẵn tài khoản, user vẫn phải nhập mật khẩu để đăng nhập.
     val loginEntry = remember { navController.currentBackStackEntry }
     var username by rememberSaveable { mutableStateOf(loginEntry?.savedStateHandle?.get<String>("registered_account").orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -65,14 +71,35 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val isLoading = authState is AuthState.Loading
     val keyboard = LocalSoftwareKeyboardController.current
-    // TV2: Back hủy request đang chờ, tránh một form đã đóng vẫn nhận kết quả và tự chuyển màn.
+    // Back hủy request đang chờ, tránh một form đã đóng vẫn nhận kết quả và tự chuyển màn.
     fun goBack() {
         authViewModel.cancelPending()
         navController.popBackStack()
     }
     BackHandler(enabled = isLoading) { goBack() }
-    // TV2: ba nút có tương tác thật; chưa có OAuth backend nên chỉ thông báo rõ, không giả đăng nhập thành công.
-    var selectedProvider by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val socialLogin = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val data = result.data
+        if (result.resultCode == Activity.RESULT_OK) {
+            val provider = runCatching {
+                FirebaseProvider.valueOf(data?.getStringExtra(SocialLoginActivity.EXTRA_PROVIDER).orEmpty())
+            }.getOrNull()
+            if (provider != null) authViewModel.finishSocialLogin(
+                data?.getStringExtra(SocialLoginActivity.EXTRA_ID_TOKEN).orEmpty(), provider
+            ) else authViewModel.socialLoginFailed("Không nhận được kết quả đăng nhập hợp lệ.")
+        } else authViewModel.socialLoginFailed(data?.getStringExtra(SocialLoginActivity.EXTRA_ERROR))
+    }
+    fun startSocialLogin(provider: FirebaseProvider) {
+        if (authViewModel.beginSocialLogin(provider)) {
+            try {
+                if (socialLoginLauncher != null) socialLoginLauncher(provider)
+                else socialLogin.launch(Intent(context, SocialLoginActivity::class.java)
+                    .putExtra(SocialLoginActivity.EXTRA_PROVIDER, provider.name))
+            } catch (_: Exception) {
+                authViewModel.socialLoginFailed("Không mở được đăng nhập. Vui lòng thử lại.")
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         loginEntry?.savedStateHandle?.remove<String>("registered_account")
@@ -110,8 +137,6 @@ fun LoginScreen(
         ) {
             Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
         }
-        // ẢNH NỀN NHÀ RÕ HƠN MỘT CHÚT (Tăng alpha lên 0.55f)
-        // Giữ tỷ lệ ảnh; neo đáy để thành phố và con đường không bị lệch giữa các màn.
         Image(
             painter = painterResource(id = R.drawable.bg_cityguard_auth),
             contentDescription = null,
@@ -119,7 +144,6 @@ fun LoginScreen(
             contentScale = ContentScale.Crop,
             alignment = Alignment.BottomCenter
         )
-        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
         Box(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
@@ -144,7 +168,7 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.height(if (compact) 0.dp else 12.dp))
 
-            // 1. LOGO (CHÈN TRÊN CHỮ)
+            // 1. LOGO
             Image(
                 painter = painterResource(id = R.drawable.logo_cityguard),
                 contentDescription = "Logo",
@@ -238,8 +262,6 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // TV2: vòng tải nằm TRONG nút; form không nhảy khi bắt đầu/kết thúc request.
             AuthSubmitButton("ĐĂNG NHẬP", "Đang đăng nhập…", isLoading, "login_submit") {
                 keyboard?.hide()
                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -257,7 +279,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
                 OutlinedButton(
-                    onClick = { selectedProvider = "Google" }, enabled = !isLoading,
+                    onClick = { startSocialLogin(FirebaseProvider.GOOGLE) }, enabled = !isLoading,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Google" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -268,7 +290,7 @@ fun LoginScreen(
                 }
                 // nút Facebook
                 OutlinedButton(
-                    onClick = { selectedProvider = "Facebook" }, enabled = !isLoading,
+                    onClick = { startSocialLogin(FirebaseProvider.FACEBOOK) }, enabled = !isLoading,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Facebook" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -276,17 +298,6 @@ fun LoginScreen(
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = CityGuardWhite, disabledContainerColor = CityGuardWhite)
                 ) {
                     Image(painterResource(R.drawable.ic_facebook_signin), contentDescription = null, modifier = Modifier.size(28.dp))
-                }
-                // nút Ig
-                OutlinedButton(
-                    onClick = { selectedProvider = "Instagram" }, enabled = !isLoading,
-                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Instagram" },
-                    shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, Color(0xFFDADCE0)),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = CityGuardWhite, disabledContainerColor = CityGuardWhite)
-                ) {
-                    Image(painterResource(R.drawable.ic_instagram_signin), contentDescription = null, modifier = Modifier.size(28.dp))
                 }
             }
 
@@ -303,20 +314,10 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
         }
-        // TV2: vẽ thông báo sau form, trên các nội dung khác và ngoài vùng thanh điều hướng/bàn phím.
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp).zIndex(2f)
-        )
-    }
-    selectedProvider?.let { provider ->
-        AlertDialog(
-            onDismissRequest = { selectedProvider = null },
-            title = { Text("Đăng nhập bằng $provider") },
-            text = { Text("Đăng nhập bằng $provider chưa khả dụng. Bạn có thể dùng tên đăng nhập hoặc email và mật khẩu CityGuard.") },
-            // TV2: chỉ một nút đóng; tạo tài khoản dùng link Đăng ký có sẵn trên Login, không thêm nhánh trùng.
-            confirmButton = { TextButton(onClick = { selectedProvider = null }) { Text("Đã hiểu") } }
         )
     }
 

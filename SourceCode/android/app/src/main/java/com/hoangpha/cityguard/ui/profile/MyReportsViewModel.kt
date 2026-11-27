@@ -19,6 +19,7 @@ data class MyReportsUiState(
     val nextPage: Int = 0, val hasNext: Boolean = false, val error: String? = null
 )
 class MyReportsViewModel @JvmOverloads constructor(
+    // Android chỉ ghép trang/distinct id; bảo vệ quyền sở hữu phải được test bằng hai JWT thật.
     application: Application,
     private val api: ProfileApi = ApiClient.profile(SessionManager(application))
 ) : AndroidViewModel(application) {
@@ -26,28 +27,25 @@ class MyReportsViewModel @JvmOverloads constructor(
     val state = _state.asStateFlow()
     private var job: Job? = null
     init { refresh() }
-    // TV2: đổi tab phải lấy lại trang 0 trên server để không bỏ sót report ngoài trang hiện tại.
     fun selectStatus(status: String?) {
         if (status == _state.value.status) return
         refresh(status)
     }
-    // TV2: hủy lượt tải cũ trước khi đổi bộ lọc; CancellationException không được biến thành lỗi hiển thị.
     fun refresh(status: String? = _state.value.status) {
         job?.cancel()
         _state.value = MyReportsUiState(status = status)
         fetch(0, status, append = false)
     }
-    // TV2: dùng nextPage/hasNext từ state, chặn bấm tải thêm liên tục tạo request trùng.
+    // dùng nextPage/hasNext từ state, chặn bấm tải thêm liên tục tạo request trùng.
     fun loadMore() {
         val current = _state.value
         if (job?.isActive == true || !current.hasNext) return
         fetch(current.nextPage, current.status, append = true)
     }
-    // TV2: lỗi trang đầu thì tải lại; lỗi trang tiếp theo thì giữ danh sách đã có và thử lại trang đó.
     fun retry() {
         if (_state.value.reports.isEmpty()) refresh() else loadMore()
     }
-    // TV2: response của /me/reports có data.items; distinctBy(id) ngăn card bị lặp khi dữ liệu giữa hai trang thay đổi.
+    // response của /me/reports có data.items; distinctBy(id) ngăn card bị lặp khi dữ liệu giữa hai trang thay đổi.
     private fun fetch(page: Int, status: String?, append: Boolean) {
         _state.value = _state.value.copy(loading = !append, loadingMore = append, error = null)
         job = viewModelScope.launch {

@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard.ui.navigation
 
-// TV2 - Trần Hữu Thịnh: Giữ route các module; Hồ sơ/My Reports dùng thanh tab theo prototype, Detail dùng toàn màn hình.
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -48,16 +46,13 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    // TV2: My Reports là màn con của Hồ sơ; giữ thanh tab như prototype, không đổi route các module khác.
     val showBottomBar = currentRoute in items.map { it.route } || currentRoute == "my_reports"
-    // TV2: chỉ đổi đáy vùng nội dung Profile/My Reports; thanh điều hướng vẫn trắng như các màn khác.
-    // TV2: chừa cả vùng điều hướng hệ thống cho hai màn này, tránh thẻ/nút nằm dưới thanh tab.
+    // chừa cả vùng điều hướng hệ thống cho hai màn này, tránh thẻ/nút nằm dưới thanh tab.
     val bottomPadding = when {
         !showBottomBar -> 0.dp
         currentRoute == "profile" || currentRoute == "my_reports" -> 80.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         else -> 80.dp
     }
-    // Giữ thanh tab ở màn chính; màn con dùng toàn bộ chiều cao.
     Box(modifier = Modifier.fillMaxSize()) {
         // Nội dung các màn hình
         NavHost(
@@ -111,7 +106,7 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
                     label = { Text(item.title) },
                     selected = currentRoute == item.route || (currentRoute == "my_reports" && item.route == "profile"),
                     onClick = {
-                        // TV2: đang ở My Reports mà bấm Hồ sơ thì trở về hồ sơ, không restore lại chính màn con.
+                        // đang ở My Reports mà bấm Hồ sơ thì trở về hồ sơ, không restore lại chính màn con.
                         if (currentRoute == "my_reports" && item.route == "profile") {
                             navController.popBackStack("profile", inclusive = false)
                         } else {

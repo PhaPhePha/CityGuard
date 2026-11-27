@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard.data.api
 
-// TV2 - Trần Hữu Thịnh: Tích hợp TV2 với API chung: chỉ sửa mine sang /me/reports và response phân trang. Create/vote/comment giữ nguyên.
-
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET

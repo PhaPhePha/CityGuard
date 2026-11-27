@@ -1,6 +1,5 @@
 package com.hoangpha.cityguard.data.api
 
-// TV2 - Trần Hữu Thịnh: Tích hợp TV2 vào repository chung: sửa myReports theo data.items/hasNext và phân biệt 404 với lỗi tải detail.
 
 import com.hoangpha.cityguard.domain.model.Comment
 import com.hoangpha.cityguard.domain.model.IncidentCategory

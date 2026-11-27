@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard.ui.profile
 
-// TV2 - Trần Hữu Thịnh: bố cục Row/Column và thẻ trắng theo prototype của nhóm.
-// Hồ sơ/summary vẫn lấy API thật; username và role giữ trong DTO nhưng không hiển thị theo yêu cầu.
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -23,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,6 +35,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.hoangpha.cityguard.ui.auth.AuthController
 import com.hoangpha.cityguard.ui.theme.*
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 
 private val ProfileCanvas = Color(0xFFFFF8D7)
 
@@ -52,14 +53,11 @@ fun ProfileScreen(
     var menuInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
     var signingOut by remember { mutableStateOf(false) }
 
-    // TV2: tự cập nhật khi quay về hoặc mở lại app, không cần nút Tải lại trên giao diện bình thường.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (!viewModel.state.value.loading) viewModel.load()
     }
 
-    // TV2: vàng đậm làm nền khung; panel kem được đặt phía trước như prototype của nhóm.
     Column(Modifier.fillMaxSize().background(CityGuardYellow)) {
-        // TV2: header chỉ chứa tiêu đề và thông tin; ba ô thống kê thuộc panel kem bên dưới.
         Box(Modifier.fillMaxWidth()) {
             Column(
                 Modifier.fillMaxWidth().background(CityGuardYellow).statusBarsPadding()
@@ -72,12 +70,27 @@ fun ProfileScreen(
                         Modifier.size(80.dp).clip(CircleShape).background(CityGuardWhite),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Person, contentDescription = "Ảnh đại diện", Modifier.size(48.dp), tint = Color(0xFF6689A3))
+                        val avatarUrl = profile?.avatarUrl?.trim()?.takeIf { it.isNotEmpty() }
+                        if (avatarUrl == null) {
+                            ProfileAvatarPlaceholder()
+                        } else {
+                            // Không tự lấy tên/ảnh từ SDK rồi ghi đè dữ liệu tài khoản local.
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(context).data(avatarUrl).crossfade(true).build(),
+                                contentDescription = "Ảnh đại diện",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                loading = { ProfileAvatarPlaceholder() },
+                                error = { ProfileAvatarPlaceholder() }
+                            )
+                        }
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            profile?.displayName ?: if (state.loading) "Đang tải hồ sơ…" else "Hồ sơ của bạn",
+                            profile?.displayName?.takeIf { it.isNotBlank() }
+                                ?: profile?.username?.takeIf { it.isNotBlank() }
+                                ?: if (state.loading) "Đang tải hồ sơ…" else "Hồ sơ của bạn",
                             fontWeight = FontWeight.Bold, fontSize = 20.sp, color = CityGuardBlack,
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
@@ -88,7 +101,6 @@ fun ProfileScreen(
             }
         }
 
-        // TV2: panel kem bo góc phủ nền vàng; thống kê nằm trong luồng bố cục, không offset/zIndex gây chồng lấn.
         Column(
             Modifier.fillMaxWidth().weight(1f).padding(bottom = 12.dp)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
@@ -102,7 +114,6 @@ fun ProfileScreen(
             }
             Spacer(Modifier.height(24.dp))
 
-            // TV2: chỉ hiện loading/error khi cần; bỏ cụm chưa có báo cáo/chưa có số liệu/nút tải lại thường trực.
             if (state.loading && profile == null) {
                 LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 12.dp), color = CityGuardBlack)
             }
@@ -119,13 +130,11 @@ fun ProfileScreen(
                 navController.navigate("my_reports") { launchSingleTop = true }
             }
             ProfileMenuItem("Xác nhận của tôi", "Các báo cáo tôi đã xác nhận", Icons.Default.CheckCircleOutline) {
-                // TV2: API hiện chỉ có tổng lượt xác nhận; không bịa danh sách mà backend chưa cung cấp.
                 menuInfo = "Xác nhận của tôi" to (profile?.let {
                     "Bạn đã gửi ${it.confirmedReports} lượt xác nhận. Phiên bản hiện tại chưa hỗ trợ xem danh sách báo cáo đã xác nhận."
                 } ?: "Chưa tải được số lượt xác nhận. Hãy kiểm tra kết nối rồi thử lại.")
             }
             ProfileMenuItem("Cài đặt", "Thông báo, quyền riêng tư", Icons.Default.Settings) {
-                // TV2: mở cài đặt ứng dụng của Android, không thêm API/cài đặt giả vào backend.
                 context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
             }
             ProfileMenuItem("Trợ giúp", "Hướng dẫn sử dụng", Icons.Default.HelpOutline) {
@@ -159,7 +168,14 @@ fun ProfileScreen(
     }
 }
 
-// TV2: Row chia đều ba thẻ, số liệu và nhãn xếp bằng Column như prototype.
+@Composable
+private fun ProfileAvatarPlaceholder() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Icon(Icons.Default.Person, contentDescription = "Ảnh đại diện mặc định",
+            modifier = Modifier.size(48.dp), tint = Color(0xFF6689A3))
+    }
+}
+
 @Composable
 private fun ProfileStatCard(label: String, value: String, modifier: Modifier = Modifier) {
     Card(

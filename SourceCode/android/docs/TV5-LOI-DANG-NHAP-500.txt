@@ -1,0 +1,42 @@
+CITYGUARD — TV5: LỖI ĐỔI FIREBASE TOKEN ĐANG CHẶN ĐĂNG NHẬP
+Ngày: 27/11/2026
+
+BẰNG CHỨNG TỪ LẦN CHẠY THẬT TRÊN EMULATOR
+- Log Android có POST http://10.0.2.2:8080/api/v1/auth/firebase.
+- Server trả HTTP 500 ở các lần 22:13:51, 22:13:59 và 22:14:28.
+- Probe request với idToken rỗng tới localhost:8080 cũng trả 500 và message lỗi hệ thống.
+- OpenAPI của server đang chạy không có path /api/v1/auth/firebase.
+- AuthController.java hiện chỉ có /register, /login, /refresh và /logout.
+
+KẾT LUẬN
+Android đã tới bước gọi API đổi Firebase ID Token. Backend hiện tại chưa có endpoint
+để tạo/tìm user và phát JWT CityGuard. Không sửa SHA hoặc đổi tài khoản Google để xử lý lỗi này.
+GlobalExceptionHandler hiện catch Exception và trả 500, có thể che cả lỗi không tìm thấy route;
+TV5 cần phân loại lỗi route 404 riêng khi hoàn thiện xử lý lỗi server.
+Không phát JWT giả hoặc cho Android vào main khi server chưa chấp nhận token.
+
+TV5 CẦN LÀM
+1. Triển khai POST /api/v1/auth/firebase nhận idToken và provider GOOGLE/FACEBOOK.
+2. Firebase Admin verify token với project cityguardapp-1f6c5.
+3. Migration và mapping UID -> users.id; tạo user mới hoặc dùng user cũ.
+4. Giữ contract AuthResponse hiện có, expiresIn theo millisecond.
+5. Xử lý social user không có email/password local; không gộp email tùy tiện.
+6. Chạy lại API và báo cho TV2 endpoint/base URL để kiểm thử thật.
+Chi tiết: TV5-HUONG-DAN-TIEP-NHAN.txt.
+
+PHÍA ANDROID ĐÃ SỬA TRONG ĐỢT NÀY
+- Facebook trước đó xin email và gặp Invalid Scopes: email trên trang OAuth.
+- Hiện chỉ xin public_profile để dùng UID; email từ provider có thể không có.
+- Đây là thay đổi request quyền, chưa phải chứng nhận Facebook/Firebase/backend login thật đã pass.
+- Nếu nhóm muốn lấy email Facebook, cấu hình quyền email ở Meta use case, xác nhận quyền
+  khả dụng cho môi trường/tài khoản rồi phối hợp TV2 bổ sung request và kiểm thử.
+- Xóa nút/icon/dialog Instagram; chỉ giữ Google/Facebook.
+- HTTP 5xx ở bước đổi token hiển thị lỗi máy chủ và không lưu phiên CityGuard.
+- Backend/database giữ nguyên theo phạm vi TV2.
+
+KẾT QUẢ KIỂM TRA SAU ĐỢT SỬA LỖI SOCIAL LOGIN
+- assembleDebug: thành công.
+- testDebugUnitTest: 50 tests, 0 failures/errors (gồm 24 AuthViewModel tests).
+- LoginNavigationTest trên Pixel_7 Android 17: 11 tests, 0 failures/errors/skipped.
+- Ca kiểm tra không còn Instagram và ca HTTP 500 không lưu phiên đều pass.
+- Chưa nghiệm thu Facebook OAuth thật sau khi đổi scope; backend social login vẫn chờ TV5.

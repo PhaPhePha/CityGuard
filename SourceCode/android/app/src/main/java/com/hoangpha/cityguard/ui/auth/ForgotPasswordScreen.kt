@@ -49,7 +49,6 @@ fun ForgotPasswordScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showRecoveryUnavailable by remember { mutableStateOf(false) }
-    // TV2 - Trần Hữu Thịnh: giữ form gốc. Backend chưa có reset-token/email API, tuyệt đối không đổi mật khẩu chỉ dựa vào email.
     fun submitRecovery() {
         val error = when {
             !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Vui lòng nhập email hợp lệ."
@@ -58,7 +57,7 @@ fun ForgotPasswordScreen(navController: NavController) {
             else -> null
         }
         if (error != null) scope.launch { snackbarHostState.showSnackbar(error) }
-        else showRecoveryUnavailable = true // TV2: không giả báo đổi mật khẩu thành công khi chưa có xác minh danh tính.
+        else showRecoveryUnavailable = true // không giả báo đổi mật khẩu thành công khi chưa có xác minh danh tính.
     }
 
     Box(
@@ -69,7 +68,6 @@ fun ForgotPasswordScreen(navController: NavController) {
         IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.align(Alignment.TopStart).zIndex(1f).systemBarsPadding().padding(start = 8.dp, top = 4.dp)) {
             Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
         }
-        // Giữ tỷ lệ ảnh; neo đáy để thành phố và con đường không bị lệch giữa các màn.
         Image(
             painter = painterResource(id = R.drawable.bg_cityguard_auth),
             contentDescription = null,
@@ -77,7 +75,6 @@ fun ForgotPasswordScreen(navController: NavController) {
             contentScale = ContentScale.Crop,
             alignment = Alignment.BottomCenter
         )
-        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
         Box(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
@@ -215,7 +212,6 @@ fun ForgotPasswordScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(8.dp))
         }
-        // TV2: vẽ thông báo sau form, trên các nội dung khác và ngoài vùng thanh điều hướng/bàn phím.
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding()

@@ -1,0 +1,230 @@
+CITYGUARD — HƯỚNG DẪN TV5 TIẾP NHẬN TỪ TV2
+TV2: Trần Hữu Thịnh | TV5: backend/database | Phối hợp TV4: report và navigation
+Ngày: 27/11/2026
+
+0. ĐỌC TRƯỚC
+Đây là hướng dẫn triển khai, không phải backend/migration đã được thực hiện.
+Android đã sẵn client social login; backend trong source hiện tại chưa có endpoint tương ứng.
+Mục tiêu: Firebase xác minh danh tính, PostgreSQL giữ users.id nghiệp vụ,
+JWT CityGuard tiếp tục dùng cho report/map/profile. Không đổi các API nghiệp vụ hiện tại.
+
+1. NHỮNG GÌ TV2 ĐÃ LÀM
+Google/Facebook SDK → Firebase signInWithCredential → getIdToken(true)
+→ POST /api/v1/auth/firebase → nhận AuthResponse → SessionManager → main.
+Chỉ Firebase ID Token mới gửi tới endpoint này. Google ID token/Facebook access token
+chỉ dùng trong bước credential của Firebase trên Android, không gửi thẳng cho TV5.
+Android không tự tạo users.id, không tự gộp email và không phát JWT CityGuard.
+Client không gửi email/displayName/avatar/role để backend tin trực tiếp.
+
+Firebase project ID: cityguardapp-1f6c5
+Android applicationId: com.cityguard.app
+Namespace/Activity: com.hoangpha.cityguard / com.hoangpha.cityguard.MainActivity
+google-services.json là cấu hình Android, KHÔNG phải service-account credential.
+App Secret Facebook cấu hình ở Firebase provider, KHÔNG phải credential Admin SDK.
+
+2. CONTRACT PHẢI GIỮ
+POST /api/v1/auth/firebase
+Content-Type: application/json
+Không yêu cầu JWT CityGuard có sẵn để đổi token lần đầu.
+
+Request:
+{"idToken":"<Firebase ID Token>","provider":"GOOGLE"}
+hoặc:
+{"idToken":"<Firebase ID Token>","provider":"FACEBOOK"}
+Validate idToken không trống, provider theo allowlist. Không log token/body request.
+
+Response HTTP 200:
+{
+  "success": true,
+  "message": "Đăng nhập thành công",
+  "data": {
+    "accessToken": "<JWT CityGuard>",
+    "refreshToken": "<refresh token CityGuard>",
+    "tokenType": "Bearer",
+    "expiresIn": 1800000,
+    "userInfo": {
+      "id": 7,
+      "username": "user_7",
+      "email": "user@example.com",
+      "displayName": "Tên người dùng",
+      "role": "USER"
+    }
+  }
+}
+expiresIn là MILLISECOND theo backend hiện tại. Không trả 1800 nếu ý nghĩa là 30 phút.
+SessionManager hiện nhận expiresIn > 0 và <= 604800000 ms; không gửi timestamp thay duration.
+userInfo.id là users.id PostgreSQL, KHÔNG phải Firebase UID. Giữ kiểu Long > 0.
+
+Response lỗi theo ErrorResponse hiện có:
+{"success":false,"errorCode":"UNAUTHORIZED","message":"Mã xác thực không hợp lệ hoặc đã hết hạn","timestamp":"<ISO instant>"}
+400: request thiếu/sai provider/validation.
+401: token hết hạn, sai chữ ký, sai project hoặc thông tin xác thực không hợp lệ.
+403: tài khoản bị khóa/vô hiệu hóa theo chính sách.
+409: cần xử lý xung đột/liên kết tài khoản; message phải hướng dẫn rõ, không lộ dữ liệu nhạy cảm.
+Lỗi cấu hình Admin SDK hoặc hạ tầng là lỗi server, không biến mọi lỗi thành sai tài khoản.
+Android hiển thị message, không tạo phiên thành công khi response lỗi.
+
+3. THỨ TỰ TRIỂN KHAI BACKEND
+
+Bước 1 — Admin SDK và credential
+- Thêm com.google.firebase:firebase-admin trong backend/pom.xml, chọn version từ tài liệu chính thức.
+- Khởi tạo FirebaseApp/FirebaseAuth một lần qua Spring configuration, cùng project ID trên.
+- Dùng Application Default Credentials hoặc secret mount của môi trường chạy.
+- Local PowerShell có thể đặt:
+  $env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\duong-dan-local\cityguard-admin.json'
+  $env:GOOGLE_CLOUD_PROJECT = 'cityguardapp-1f6c5'
+  rồi chạy backend trong CÙNG Terminal. Đây là đường dẫn mẫu, cần thay bằng file thật.
+- Nếu lấy private key: Firebase Project settings → Service accounts; chỉ người có quyền
+  phù hợp thực hiện và lưu ngoài source. Không gửi key qua chat, không đưa vào Android/ZIP/Git.
+- Không dùng google-services.json để khởi tạo Admin SDK.
+Tài liệu: https://firebase.google.com/docs/admin/setup
+
+Bước 2 — Request/Controller/Service
+- Tạo FirebaseLoginRequest trong dto/auth, gồm idToken và provider.
+- Thêm @PostMapping("/firebase") vào controller/AuthController.java.
+- Thêm phương thức tương ứng trong service/AuthService.java và AuthServiceImpl.java.
+- SecurityConfig đang permit /api/v1/auth/**; không mở rộng quyền các API /me/report.
+- Đọc GlobalExceptionHandler/ErrorCode/ErrorResponse hiện tại để trả đúng HTTP/message.
+
+Bước 3 — Xác minh token trước mọi thao tác user
+- Dùng FirebaseAuth.verifyIdToken(idToken), không chỉ decode payload bằng Base64/JWT parser.
+- Token phải thuộc đúng Firebase project, có chữ ký/issuer/audience/expiry hợp lệ.
+- Chốt thêm chính sách kiểm tra revoke/disabled bằng Admin SDK; verifyIdToken mặc định
+  không tự kiểm tra token đã revoke. Không giả định Android signOut làm revoke ID token.
+- Lấy Firebase UID từ decoded token sau verify, cùng email/name/picture nếu có.
+- Đối chiếu firebase.sign_in_provider trong claims đã verify:
+    request GOOGLE   → google.com
+    request FACEBOOK → facebook.com
+  Không tin enum provider do Android gửi nếu token không khớp.
+- Kiểm tra kiểu/null của claims. Email/name/picture có thể thiếu; Facebook không bảo đảm có email.
+- Trường profile lấy từ token là thông tin gắn với danh tính đã xác thực, không phải quyền
+  nâng role. role/status vẫn do CityGuard quản lý; tài khoản mới không tự thành ADMIN.
+Tài liệu: https://firebase.google.com/docs/auth/admin/verify-id-tokens
+API Java: https://firebase.google.com/docs/reference/admin/java/reference/com/google/firebase/auth/FirebaseToken
+
+Bước 4 — Tìm/tạo user và migration trước khi chạy API
+- Đối chiếu schema DB thật: User entity hiện có avatar_url và password_hash nullable=false,
+  chưa có auth_provider/provider_subject. JPA đang ddl-auto:none, không tự sinh migration.
+- Thêm migration phiên bản mới cho auth_provider/provider_subject (Firebase UID),
+  avatar_url chỉ bổ sung nếu schema thật chưa có. Giữ nguyên users.id và các FK hiện hữu.
+- Thêm UNIQUE(auth_provider, provider_subject); chọn độ dài subject đủ cho Firebase UID.
+- Khi Firebase đã liên kết Google/Facebook, hai cách có thể có cùng UID. Phải tìm lại
+  cùng users.id theo identity đã liên kết; chỉ tra cặp provider mới rồi tạo user sẽ có nguy cơ
+  tách một người thành hai user. Chốt mô hình mapping/constraint bổ sung phù hợp.
+- Tạo user mới trong transaction, có unique constraint chống hai request tạo trùng;
+  xử lý xung đột đồng thời rồi tìm lại user thay vì phát hai users.id.
+- Username phải phù hợp ràng buộc hiện tại, unique và ổn định; không dùng nguyên email
+  làm username nếu vi phạm regex. Giới hạn displayName phù hợp độ dài 100 của entity.
+- Không giả định social user có password local. Chốt schema/entity cho phép không có
+  password local và chặn /login mật khẩu với user đó bằng lỗi xác thực rõ ràng;
+  giữ account local cũ và BCrypt hash cũ. Không lưu password Google/Facebook.
+- JwtService hiện dùng username hoặc email làm subject; CustomUserDetailsService đọc lại
+  theo username/email. Social user phải có định danh nội bộ phù hợp để JWT còn dùng được
+  cho /me/report, kể cả khi provider không trả email.
+- User đã tồn tại: giữ users.id, role/status, cập nhật profile theo chính sách; không vô tình
+  xóa email hợp lệ bằng null hoặc ghi đè tên người dùng tự chỉnh nếu nhóm không muốn.
+
+Bước 5 — Email Google trùng tài khoản local: PHẢI CHỐT VỚI TV2
+- Không tự gộp hoặc chuyển quyền chỉ theo chuỗi email trùng.
+- Phương án đề xuất: yêu cầu đăng nhập local → xác thực CityGuard JWT của user cũ
+  → xác minh Firebase token của provider mới → liên kết hai danh tính → giữ users.id cũ.
+- Endpoint/UI liên kết chưa có trong source TV2/TV5 hiện tại. Nếu nhóm chọn cách này,
+  cần TV5 thiết kế API và TV2 bổ sung UI sau khi thống nhất contract.
+- Trong khi chưa có linking, trả 409 an toàn. Android đã hiển thị message đó, nhưng
+  không được ghi tính năng liên kết là hoàn thành chỉ vì test 409 pass.
+- Kiểm tra email_verified và chính sách email, không biến email chưa xác minh thành
+  bằng chứng sở hữu tài khoản local. Firebase linking không tự sửa user trong PostgreSQL.
+Tài liệu tham khảo: https://firebase.google.com/docs/auth/android/account-linking
+
+Bước 6 — Phát JWT giống login hiện tại
+- Tái sử dụng buildAuthResponse(User) trong AuthServiceImpl: cùng access token,
+  refresh token hash, expiry và UserInfo. Hàm hiện private; thêm phương thức social
+  trong cùng service hoặc tách token issuer dùng chung, không gọi private từ service khác.
+- Giữ logout/refresh rotation và user status check hiện có.
+- Không trả Google/Facebook token hoặc Firebase refresh token thay JWT CityGuard.
+- Không lưu Firebase ID Token/social access token vào PostgreSQL.
+
+4. PROFILE/MY REPORTS — CONTRACT ANDROID ĐANG DÙNG
+Authorization: Bearer <CityGuard accessToken>
+
+GET /api/v1/me/summary
+data phẳng gồm: id, username, email, displayName, avatarUrl, role,
+reportCount, confirmedReports.
+confirmedReports hiện đếm vote CONFIRMED do current user gửi. Chốt ý nghĩa với nhóm
+nếu muốn đổi sang số report do user tạo đã xác nhận; không âm thầm đổi định nghĩa.
+UI đã render avatarUrl; username/role có trong DTO, bố cục hiện không hiển thị hai trường đó. "Bị phản hồi" chưa có field API.
+
+GET /api/v1/me/reports?page=0&size=20&status=ACTIVE
+status có thể bỏ qua; UI hiện dùng null/ACTIVE/EXPIRED.
+data gồm: items, page, size, totalElements, totalPages, hasNext.
+items dùng ReportResponse hiện tại; id là public report ID để mở detail.
+Lọc theo principal JWT ở SERVER trước khi phân trang; không tin userId/query/header tự khai.
+ProfileController/ProfileServiceImpl hiện đã có hai endpoint này, không cần tạo route khác.
+Sau social login phải dùng cùng users.id nên dữ liệu nghiệp vụ và FK vẫn liên tục.
+
+5. CÁC FILE TV5 NÊN ĐỌC/SỬA
+Đường dẫn tính từ SourceCode/backend:
+pom.xml; src/main/resources/application.yaml và application-prod.yml
+src/main/java/com/cityguard/backend/controller/AuthController.java
+src/main/java/com/cityguard/backend/service/AuthService.java
+src/main/java/com/cityguard/backend/service/impl/AuthServiceImpl.java
+src/main/java/com/cityguard/backend/entity/User.java
+src/main/java/com/cityguard/backend/repository/UserRepository.java
+src/main/java/com/cityguard/backend/security/JwtService.java
+src/main/java/com/cityguard/backend/security/CustomUserDetailsService.java
+src/main/java/com/cityguard/backend/security/SecurityConfig.java
+src/main/java/com/cityguard/backend/controller/ProfileController.java
+src/main/java/com/cityguard/backend/service/impl/ProfileServiceImpl.java
+src/main/java/com/cityguard/backend/exception/GlobalExceptionHandler.java
+Và migration theo quy ước DB hiện có của nhóm; hướng dẫn này không chạy SQL trên DB.
+
+6. NGHIỆM THU PHỐI HỢP — GHI EXPECTED/ACTUAL RIÊNG
+[ ] Google đầu: +1 user, nhận JWT, /me đúng user vừa tạo.
+[ ] Google lại: không tăng user count, giữ users.id, giữ report/vote/comment.
+[ ] Facebook: OAuth thật bằng Administrator/Tester, Firebase verify + JWT thành công.
+[ ] Email trùng local: không chiếm/tách user; kiểm chứng hành vi đã thống nhất
+    (nếu chọn linking thì phải có linking thật, không chỉ test chặn 409).
+[ ] Logout/login lại, đổi A → B: không còn Profile/My Reports của A trên phiên B.
+[ ] Token Firebase sai/hết hạn/sai project/provider giả: từ chối, không tạo user/JWT.
+[ ] Hai JWT A/B: My Reports đúng ownership ở tất cả trang; thử report trái quyền theo chính sách nhóm.
+[ ] Login/Register mật khẩu: 201/400/401/409, JWT, logout và refresh hiện tại không hỏng.
+[ ] Backend tắt/mất mạng: Android có lỗi/retry, không crash/không giả thành công.
+[ ] Máy thật: đăng ký → login → đóng/mở → logout; Back không mở lại dữ liệu bảo vệ.
+[ ] Release HTTPS thật, ký release, SHA/Key Hash đúng; không dùng endpoint emulator/LAN.
+
+Mẫu ghi kết quả: mã ca | build/commit | thiết bị | môi trường | bước | expected |
+actual | users.id trước/sau | PASS/FAIL | ảnh/log đã che token | người chạy/ngày.
+Không đưa JWT/service-account key/App Secret vào bằng chứng công khai.
+
+7. TV5 CẦN TRẢ LẠI CHO TV2
+- Base URL theo môi trường, có dấu / cuối; endpoint /auth/firebase đã hoạt động.
+- Response mẫu đã che token; xác nhận expiresIn là ms, UserInfo.id là users.id.
+- Migration đã áp dụng ở môi trường nào, kết quả test UID/ownership/email collision.
+- Quyết định và contract linking nếu có; thay đổi summary/profile nếu cần chốt với TV4/TV2.
+- Release URL HTTPS thật để TV2 cấu hình CITYGUARD_RELEASE_BASE_URL.
+- Báo rõ ca chưa chạy/đang lỗi; không dùng kết quả unit test Android thay test backend.
+
+TV2 gửi: code client, DTO, ghi chú [TV2-01..14], kết quả 49 unit + 11 UI test đã chạy,
+và checklist TV2-DOI-CHIEU-YEU-CAU.txt. File cấu hình local chuyển riêng cho người cần build.
+
+CẬP NHẬT SỬA LỖI SOCIAL LOGIN — 27/11/2026
+- Đợt rà soát ghi chú phía trên chỉ sửa comment; sau đó có đợt sửa hành vi theo ảnh lỗi của owner.
+- Đã xóa nút/icon/dialog Instagram, UI chỉ còn Google/Facebook.
+- Request Facebook hiện chỉ xin public_profile; không xin email khi Meta đang báo Invalid Scopes.
+  Email provider có thể thiếu, TV5 phải xử lý bằng identity UID thay vì bắt buộc email/password local.
+- Google đã tới POST /auth/firebase nhưng server thật trả 500 và OpenAPI thiếu route.
+  Đọc TV5-LOI-DANG-NHAP-500.txt. Tính năng vẫn CHỜ TV5 hoàn thiện API/migration/JWT.
+- Không đánh dấu đăng nhập thật end-to-end đã pass chỉ vì build hoặc test fake đạt.
+
+KẾT QUẢ KIỂM TRA SAU ĐỢT SỬA LỖI SOCIAL LOGIN
+- assembleDebug: thành công.
+- testDebugUnitTest: 50 tests, 0 failures/errors (gồm 24 AuthViewModel tests).
+- LoginNavigationTest trên Pixel_7 Android 17: 11 tests, 0 failures/errors/skipped.
+- Ca kiểm tra không còn Instagram và ca HTTP 500 không lưu phiên đều pass.
+- Chưa nghiệm thu Facebook OAuth thật sau khi đổi scope; backend social login vẫn chờ TV5.
+
+CẬP NHẬT PROFILE: TÊN VÀ ẢNH — 27/11/2026
+Profile đã render avatarUrl từ backend, có icon dự phòng khi thiếu/tải ảnh lỗi.
+Tên hiển thị lấy displayName, fallback username nếu trống. Mở lại Profile sẽ tải dữ liệu API.
+TV5 cần đồng bộ tên/ảnh từ Firebase đã verify vào user CityGuard và trả qua /me/summary;
+Android không tự sửa dữ liệu PostgreSQL. Chi tiết: TV5-DONG-BO-TEN-ANH.txt.

@@ -1,0 +1,170 @@
+CITYGUARD — BÀN GIAO ANDROID TV2
+Ngày: 27/11/2026
+
+1. PHẠM VI VÀ LUỒNG ĐÃ TRIỂN KHAI
+Chỉ sửa Android TV2. Backend TV5 và PostgreSQL không thay đổi.
+Google Credential Manager / Facebook Login SDK → Firebase Auth → Firebase ID Token mới
+→ POST /api/v1/auth/firebase → JWT CityGuard → SessionManager → màn hình chính.
+Chỉ lưu accessToken, refreshToken CityGuard và users.id; không lưu social token vào SessionManager.
+Phiên Firebase/Facebook được dọn sau khi xác thực. Hủy OAuth, lỗi 401/409, token rỗng,
+callback trễ/trùng và endpoint chưa tồn tại không được tạo phiên đăng nhập thành công.
+Giữ login username/password và flow report/map/profile hiện có.
+Đã xóa nút/icon/dialog Instagram theo yêu cầu; chỉ giữ Google/Facebook.
+
+2. CẤU HÌNH LOCAL ĐỂ CHẠY
+- android/app/google-services.json: project cityguardapp-1f6c5, package com.cityguard.app.
+  File hiện có Web OAuth client ID. Không commit file này.
+- android/facebook.local.properties:
+    FACEBOOK_APP_ID=<Meta App ID>
+    FACEBOOK_CLIENT_TOKEN=<Meta Advanced → Security → Client Token>
+  Đã tạo local từ thông tin bạn cung cấp; cập nhật nếu reset Client Token.
+  Mẫu cho thành viên khác: android/facebook.local.properties.example.
+  Không đưa App Secret hoặc Firebase service-account credential vào Android.
+- Firebase BoM 34.7.0 / Auth 24.0.1: build tương thích Kotlin 2.2 của dự án.
+  BoM 35.2.0 trong hướng dẫn Console dùng Auth 25.0.0, metadata Kotlin 2.4,
+  đã gây lỗi compile trên toolchain hiện tại nên không dùng phiên bản đó.
+- Credential Manager 1.3.0, googleid 1.1.1, Facebook Login SDK 19.0.1.
+- Người khác tự build cần thêm SHA-1/SHA-256 và Facebook Key Hash của máy họ.
+- Bổ sung chứng chỉ release, Key Hash release và Play App Signing nếu áp dụng.
+- Meta app chưa phát hành: bạn dùng tài khoản Administrator để thử; thêm Tester sau.
+- App Secret đã lộ trong ảnh: reset trên Meta và cập nhật secret mới vào Firebase provider.
+
+3. HỢP ĐỒNG API BÀN GIAO TV5
+POST /api/v1/auth/firebase
+Content-Type: application/json
+Android không gắn JWT cũ vào request auth.
+
+Google:   {"idToken":"<Firebase ID Token>","provider":"GOOGLE"}
+Facebook: {"idToken":"<Firebase ID Token>","provider":"FACEBOOK"}
+Không gửi Google ID token/Facebook access token trực tiếp đến API này.
+
+Response 200 giữ đúng envelope login hiện tại:
+{
+  "success": true,
+  "message": "Đăng nhập thành công",
+  "data": {
+    "accessToken": "<CityGuard JWT>",
+    "refreshToken": "<CityGuard refresh token>",
+    "tokenType": "Bearer",
+    "expiresIn": 1800000,
+    "userInfo": {
+      "id": 7,
+      "username": "cityguard_user",
+      "email": "user@example.com",
+      "displayName": "Tên người dùng",
+      "role": "USER"
+    }
+  }
+}
+expiresIn là MILLISECOND theo backend hiện tại. id là users.id PostgreSQL > 0.
+Lỗi giữ cấu trúc message hiện tại để Android hiển thị; token sai/hết hạn → 401,
+user khóa → 403, xung đột cần liên kết tài khoản → 409.
+
+4. TV5 CẦN HOÀN THIỆN — CHƯA TRIỂN KHAI TRONG PHẦN TV2
+- Firebase Admin SDK; credential qua biến môi trường/secrets, cùng Firebase project.
+- Verify chữ ký/project/issuer/expiry theo Admin SDK và đối chiếu provider đã xác minh.
+- Lấy UID/email/displayName/avatar từ danh tính đã xác minh, không tin Android tự khai.
+- Tạo user lần đầu; đăng nhập sau dùng lại users.id, cập nhật profile theo chính sách.
+- Email trùng local: yêu cầu xác thực tài khoản local để liên kết, giữ users.id cũ.
+  Nếu chưa có luồng liên kết, trả 409 rõ ràng; không tự gộp chỉ theo chuỗi email.
+- Migration auth_provider, provider_subject (Firebase UID), avatar_url nếu chưa có;
+  UNIQUE(auth_provider, provider_subject). Liên kết nhiều provider phải giữ cùng users.id.
+- Xử lý đăng nhập đồng thời bằng unique constraint/transaction phù hợp.
+- Phát JWT CityGuard qua logic login hiện tại.
+- Report/vote/comment tiếp tục tham chiếu users.id.
+- Không lưu password Google/Facebook hoặc social access token vào PostgreSQL.
+
+5. NGHIỆM THU THẬT CÙNG TV5 — CHƯA ĐƯỢC ĐÁNH DẤU PASS
+1) Google lần đầu tạo đúng một user.
+2) Google lần sau dùng lại users.id cũ.
+3) Facebook login với tài khoản có role, đổi JWT thành công.
+4) Email Google trùng local: chốt luồng liên kết có xác thực; 409 chỉ là chặn an toàn, chưa chứng minh đã liên kết.
+5) Logout/login lại, đổi A sang B: đúng phiên và dữ liệu của B.
+6) Firebase ID token sai/hết hạn: backend trả 401, Android không vào main.
+7) Profile/My Reports/report/vote/comment thuộc đúng người dùng.
+8) Login/register username/password vẫn hoạt động.
+Unit test và UI test dùng fake chỉ chứng minh hành vi Android, không chứng minh
+đăng nhập thật trên Firebase/Meta/backend đã thành công.
+
+6. LỆNH KIỂM TRA
+Terminal tại thư mục android, dùng JDK của Android Studio:
+.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest
+Có emulator kết nối:
+.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.hoangpha.cityguard.ui.auth.LoginNavigationTest
+
+7. FILE ĐÃ SỬA / THÊM
+android/build.gradle.kts
+android/app/build.gradle.kts
+android/.gitignore
+android/facebook.local.properties.example
+android/app/src/main/AndroidManifest.xml
+android/app/src/main/java/com/hoangpha/cityguard/data/api/AuthApi.kt
+android/app/src/main/java/com/hoangpha/cityguard/ui/auth/AuthController.kt
+android/app/src/main/java/com/hoangpha/cityguard/ui/auth/AuthViewModel.kt
+android/app/src/main/java/com/hoangpha/cityguard/ui/auth/LoginScreen.kt
+android/app/src/main/java/com/hoangpha/cityguard/ui/auth/SocialLoginActivity.kt
+android/app/src/test/java/com/hoangpha/cityguard/ui/auth/AuthViewModelTest.kt
+android/app/src/androidTest/java/com/hoangpha/cityguard/ui/auth/LoginNavigationTest.kt
+
+8. TÀI LIỆU CHÍNH THỨC
+https://firebase.google.com/docs/auth/android/google-signin
+https://firebase.google.com/docs/auth/android/facebook-login
+https://firebase.google.com/support/release-notes/android
+https://developers.facebook.com/documentation/facebook-login/android
+
+Bản ZIP chỉ chứa file source TV2 đã sửa/thêm, không phải toàn bộ repository.
+Không chứa google-services.json, facebook.local.properties, App Secret hoặc service-account key.
+Khi chuyển cho thành viên khác, đối chiếu diff trước khi chép đè file họ đang chỉnh.
+
+9. KẾT QUẢ KIỂM TRA ĐÃ CHẠY
+- assembleDebug và assembleDebugAndroidTest: BUILD SUCCESSFUL.
+- testDebugUnitTest: 49 tests, 0 failures, 0 errors (gồm 23 AuthViewModel tests).
+- connectedDebugAndroidTest: bộ LoginNavigationTest trên Pixel_7 emulator, Android 17.
+  Kết quả UI: 11 tests, 0 failures, 0 errors, 0 skipped.
+
+Name                                                                 Tests Failed Errors
+----                                                                 ----- ------ ------
+com.hoangpha.cityguard.data.api.ApiErrorsTest                            4      0      0
+com.hoangpha.cityguard.data.local.SessionManagerTest                     3      0      0
+com.hoangpha.cityguard.ExampleUnitTest                                   1      0      0
+com.hoangpha.cityguard.presentation.community.CommunityUiStateTest       2      0      0
+com.hoangpha.cityguard.presentation.report.CreateReportViewModelTest     5      0      0
+com.hoangpha.cityguard.presentation.report.ReportDetailViewModelTest     6      0      0
+com.hoangpha.cityguard.ui.auth.AuthViewModelTest                        23      0      0
+com.hoangpha.cityguard.ui.profile.MyReportsViewModelTest                 3      0      0
+com.hoangpha.cityguard.ui.profile.ProfileViewModelTest                   2      0      0
+
+
+
+
+10. BỔ SUNG RÀ SOÁT THEO TOÀN BỘ NHIỆM VỤ TV2
+Đọc thêm TV2-DOI-CHIEU-YEU-CAU.txt, TV5-HUONG-DAN-TIEP-NHAN.txt,
+và TV2-GHI-CHU-CODE.txt. Chưa đánh dấu toàn bộ nhiệm vụ đã nghiệm thu.
+Source đã thêm 14 ghi chú trách nhiệm. Lượt rà soát chỉ thay comment/tài liệu;
+49 unit + 11 UI test là kết quả đã chạy trước đó, không tuyên bố chạy lại.
+Package mới gồm các file TV2 liên quan được ghi chú và tài liệu, không chỉ 12 file social login ban đầu.
+
+CẬP NHẬT SỬA LỖI SOCIAL LOGIN — 27/11/2026
+- Đợt rà soát ghi chú phía trên chỉ sửa comment; sau đó có đợt sửa hành vi theo ảnh lỗi của owner.
+- Đã xóa nút/icon/dialog Instagram, UI chỉ còn Google/Facebook.
+- Request Facebook hiện chỉ xin public_profile; không xin email khi Meta đang báo Invalid Scopes.
+  Email provider có thể thiếu, TV5 phải xử lý bằng identity UID thay vì bắt buộc email/password local.
+- Google đã tới POST /auth/firebase nhưng server thật trả 500 và OpenAPI thiếu route.
+  Đọc TV5-LOI-DANG-NHAP-500.txt. Tính năng vẫn CHỜ TV5 hoàn thiện API/migration/JWT.
+- Không đánh dấu đăng nhập thật end-to-end đã pass chỉ vì build hoặc test fake đạt.
+
+KẾT QUẢ KIỂM TRA SAU ĐỢT SỬA LỖI SOCIAL LOGIN
+- assembleDebug: thành công.
+- testDebugUnitTest: 50 tests, 0 failures/errors (gồm 24 AuthViewModel tests).
+- LoginNavigationTest trên Pixel_7 Android 17: 11 tests, 0 failures/errors/skipped.
+- Ca kiểm tra không còn Instagram và ca HTTP 500 không lưu phiên đều pass.
+- Chưa nghiệm thu Facebook OAuth thật sau khi đổi scope; backend social login vẫn chờ TV5.
+
+CẬP NHẬT PROFILE: TÊN VÀ ẢNH — 27/11/2026
+Profile đã render avatarUrl từ backend, có icon dự phòng khi thiếu/tải ảnh lỗi.
+Tên hiển thị lấy displayName, fallback username nếu trống. Mở lại Profile sẽ tải dữ liệu API.
+TV5 cần đồng bộ tên/ảnh từ Firebase đã verify vào user CityGuard và trả qua /me/summary;
+Android không tự sửa dữ liệu PostgreSQL. Chi tiết: TV5-DONG-BO-TEN-ANH.txt.
+Lưu ý bản cập nhật avatar: chưa xác nhận build/test mới đạt do hạn chế quyền môi trường.
+Kết quả 50 unit + 11 UI test phía trên là bản trước cập nhật avatar.
+Xem TV5-DONG-BO-TEN-ANH.txt để biết chi tiết và lệnh kiểm tra.

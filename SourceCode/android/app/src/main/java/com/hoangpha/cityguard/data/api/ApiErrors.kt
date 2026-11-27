@@ -12,9 +12,8 @@ import retrofit2.Response
 
 class ApiException(val status: Int, message: String) : RuntimeException(message)
 private data class ErrorBody(val message: String?)
-
-// TV2: nhận mọi 2xx (gồm 201). Lỗi HTTP ưu tiên message thực từ backend, không gán nhầm mọi lỗi thành trùng tài khoản.
 internal fun <T> requireApiData(response: Response<ApiResponse<T>>): T {
+    // Lỗi mạng/timeout chỉ hiện lỗi và cho thử lại, không chuyển thành đăng nhập thành công.
     if (!response.isSuccessful) {
         val serverMessage = runCatching {
             Gson().fromJson(response.errorBody()?.string(), ErrorBody::class.java)?.message
@@ -34,11 +33,8 @@ internal fun <T> requireApiData(response: Response<ApiResponse<T>>): T {
     }
     return envelope.data
 }
-
-// TV2: thông báo dễ hiểu cho UI, không đưa stack trace hoặc chi tiết exception nội bộ ra màn hình.
 internal fun Throwable.userMessage(): String = when (this) {
     is ApiException -> message ?: "Yêu cầu không thành công."
-    // TV2: timeout có thể ở bước kết nối hoặc chờ dữ liệu; không kết luận sai rằng server chắc chắn xử lý chậm.
     is SocketTimeoutException -> "Kết nối quá thời gian chờ. Vui lòng thử lại."
     is UnknownHostException -> "Không tìm thấy máy chủ. Kiểm tra mạng rồi thử lại."
     is ConnectException -> "Không kết nối được máy chủ. Vui lòng thử lại sau."

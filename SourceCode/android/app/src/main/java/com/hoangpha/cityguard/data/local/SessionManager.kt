@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard.data.local
-
-// TV2 - Trần Hữu Thịnh: DataStore lưu phiên qua lần đóng/mở app; bổ sung refresh token và expires_at, xóa đúng phiên khi hết hạn.
-
+// DataStore lưu phiên qua lần đóng/mở app; bổ sung refresh token và expires_at, xóa đúng phiên khi hết hạn.
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -18,9 +16,6 @@ import kotlinx.coroutines.flow.map
 val Context.dataStore by preferencesDataStore(name = "cityguard_session")
 
 data class StoredSession(val accessToken: String, val refreshToken: String, val userId: String, val expiresAt: Long)
-
-// TV2: hợp đồng lưu phiên đặt ngay trong file/package cũ. Runtime vẫn dùng SessionManager/DataStore;
-// test ViewModel có thể dùng bộ nhớ để không phụ thuộc lịch chạy I/O của Android.
 interface SessionStore {
     val session: Flow<StoredSession?>
     suspend fun saveSession(token: String, userId: String, refreshToken: String, expiresIn: Long)
@@ -30,8 +25,8 @@ interface SessionStore {
     suspend fun clearIfTokenMatches(token: String)
 }
 
-// TV2: now mặc định là giờ hệ thống; cho test điều khiển thời gian mà không phải sleep/chờ I/O.
 class SessionManager(context: Context, private val now: () -> Long = { System.currentTimeMillis() }) : SessionStore {
+    // expiresIn là millisecond; lưu refreshToken nhưng thiết kế hiện tại hết hạn sẽ về Login, chưa tự refresh.
     private val context = context.applicationContext
     companion object {
         val TOKEN_KEY = stringPreferencesKey("auth_token")
@@ -40,7 +35,7 @@ class SessionManager(context: Context, private val now: () -> Long = { System.cu
         private val EXPIRY_KEY = longPreferencesKey("expires_at")
     }
 
-    // TV2: đọc một snapshot token/user ID/thời hạn từ cùng giao dịch DataStore. Phiên cũ thiếu expires_at phải Login lại.
+    // đọc một snapshot token/user ID/thời hạn từ cùng giao dịch DataStore. Phiên cũ thiếu expires_at phải Login lại.
     override val session: Flow<StoredSession?> = this.context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
@@ -63,7 +58,7 @@ class SessionManager(context: Context, private val now: () -> Long = { System.cu
         }
     }
 
-    // TV2: không gửi access token đã hết hạn lên API; clearIfTokenMatches tránh xóa phiên mới do request cũ.
+    //không gửi access token đã hết hạn lên API; clearIfTokenMatches tránh xóa phiên mới do request cũ.
     override suspend fun getToken(): String? {
         val current = session.first() ?: return null
         if (current.expiresAt <= now()) {

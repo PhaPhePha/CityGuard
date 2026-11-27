@@ -161,6 +161,123 @@ class AuthViewModelTest {
     private fun failure(code: Int, message: String): Response<ApiResponse<AuthResponse>> = Response.error(code,
         """{"success":false,"message":"$message"}""".toResponseBody("application/json".toMediaType()))
 
+    @Test fun googleExchangeSavesOnlyCityGuardJwtAndUserId() = runTest(dispatcher) {
+        assertTrue(vm.beginSocialLogin(FirebaseProvider.GOOGLE))
+        vm.finishSocialLogin("firebase-id-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertEquals(FirebaseLoginRequest("firebase-id-token", FirebaseProvider.GOOGLE), api.firebaseRequest)
+        assertEquals(AuthState.Success, vm.authState.value)
+        assertEquals("access", manager.getToken())
+        assertEquals("refresh", manager.session.first()?.refreshToken)
+        assertEquals("7", manager.getUserId())
+    }
+
+    @Test fun facebookUsesSameJwtSessionFlow() = runTest(dispatcher) {
+        vm.beginSocialLogin(FirebaseProvider.FACEBOOK)
+        vm.finishSocialLogin("firebase-facebook-token", FirebaseProvider.FACEBOOK)
+        runCurrent()
+        assertEquals(FirebaseProvider.FACEBOOK, api.firebaseRequest?.provider)
+        assertEquals(AuthState.Success, vm.authState.value)
+        assertEquals("access", manager.getToken())
+    }
+
+    @Test fun expiredFirebaseTokenNeverCreatesCityGuardSession() = runTest(dispatcher) {
+        api.firebaseResponse = { failure(401, "Firebase token đã hết hạn") }
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("expired-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertEquals("Firebase token đã hết hạn", (vm.authState.value as AuthState.Error).message)
+        assertNull(manager.session.first())
+    }
+
+    @Test fun emailConflictPreservesBackendMessageWithoutOverwritingUser() = runTest(dispatcher) {
+        api.firebaseResponse = { failure(409, "Hãy đăng nhập tài khoản local để liên kết Google") }
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("firebase-id-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertTrue((vm.authState.value as AuthState.Error).message.contains("liên kết"))
+        assertNull(manager.session.first())
+    }
+
+    @Test fun cancelledSocialFlowIgnoresLateResultAndAllowsPasswordLogin() = runTest(dispatcher) {
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        assertFalse(vm.beginSocialLogin(FirebaseProvider.FACEBOOK))
+        vm.socialLoginFailed(null)
+        vm.finishSocialLogin("late-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertNull(api.firebaseRequest)
+        assertEquals(AuthState.Idle, vm.authState.value)
+        vm.login("thinh", "secret123")
+        runCurrent()
+        assertEquals(AuthState.Success, vm.authState.value)
+    }
+
+    @Test fun wrongProviderAndDuplicateCallbackCannotExchangeTwice() = runTest(dispatcher) {
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("wrong", FirebaseProvider.FACEBOOK)
+        assertNull(api.firebaseRequest)
+        vm.finishSocialLogin("correct", FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("duplicate", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertEquals(1, api.firebaseCalls)
+        assertEquals("correct", api.firebaseRequest?.idToken)
+    }
+
+    @Test fun missingBackendEndpointShowsErrorWithoutSavingFirebaseToken() = runTest(dispatcher) {
+        api.firebaseResponse = { failure(404, "Not Found") }
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("firebase-id-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertTrue((vm.authState.value as AuthState.Error).message.contains("chưa được máy chủ hỗ trợ"))
+        assertNull(manager.session.first())
+    }
+
+    @Test fun blankFirebaseTokenIsRejectedBeforeCallingBackend() = runTest(dispatcher) {
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertNull(api.firebaseRequest)
+        assertTrue(vm.authState.value is AuthState.Error)
+    }
+
+    @Test fun server500DuringSocialExchangeDoesNotCreateSessionOrBlameFirebase() = runTest(dispatcher) {
+        api.firebaseResponse = { failure(500, "Lỗi hệ thống, vui lòng thử lại sau") }
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("firebase-id-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        assertTrue((vm.authState.value as AuthState.Error).message.contains("Máy chủ"))
+        assertNull(manager.session.first())
+    }
+
+    @Test fun logoutThenSocialLoginUsesNewCityGuardUserId() = runTest(dispatcher) {
+        vm.login("thinh", "secret123")
+        runCurrent()
+        assertEquals("7", manager.getUserId())
+        vm.logout {}
+        runCurrent()
+        assertNull(manager.session.first())
+        api.firebaseResponse = { Response.success(ApiResponse(true, null,
+            AuthResponse("access-user-9", "refresh-user-9", "Bearer", 1_800_000,
+                UserInfo(9, "other", "other@example.com", "Other", "USER")))) }
+        vm.beginSocialLogin(FirebaseProvider.FACEBOOK)
+        vm.finishSocialLogin("firebase-user-9", FirebaseProvider.FACEBOOK)
+        runCurrent()
+        assertEquals("9", manager.getUserId())
+        assertEquals("access-user-9", manager.getToken())
+    }
+
+    @Test fun backDuringBackendExchangeCannotSaveLateJwt() = runTest(dispatcher) {
+        api.pendingFirebase = CompletableDeferred()
+        vm.beginSocialLogin(FirebaseProvider.GOOGLE)
+        vm.finishSocialLogin("firebase-id-token", FirebaseProvider.GOOGLE)
+        runCurrent()
+        vm.cancelPending()
+        api.pendingFirebase!!.complete(api.firebaseResponse())
+        runCurrent()
+        assertEquals(AuthState.Idle, vm.authState.value)
+        assertNull(manager.session.first())
+    }
+
 
     // TV2: fake chỉ lưu giá trị trong RAM; ba SessionManagerTest vẫn kiểm tra DataStore thật.
     private class MemorySessionStore : SessionStore {
@@ -177,6 +294,17 @@ class AuthViewModelTest {
         }
     }
     private class FakeAuthApi : AuthApi {
+        var firebaseRequest: FirebaseLoginRequest? = null
+        var firebaseCalls = 0
+        var pendingFirebase: CompletableDeferred<Response<ApiResponse<AuthResponse>>>? = null
+        var firebaseResponse: () -> Response<ApiResponse<AuthResponse>> = {
+            Response.success(ApiResponse(true, null, auth))
+        }
+        override suspend fun loginFirebase(request: FirebaseLoginRequest): Response<ApiResponse<AuthResponse>> {
+            firebaseCalls++
+            firebaseRequest = request
+            return pendingFirebase?.await() ?: firebaseResponse()
+        }
         private val auth = AuthResponse("access", "refresh", "Bearer", 1_800_000,
             UserInfo(7, "thinh", "thinh@example.com", "Thịnh", "USER"))
         var pendingLogin: CompletableDeferred<Response<ApiResponse<AuthResponse>>>? = null

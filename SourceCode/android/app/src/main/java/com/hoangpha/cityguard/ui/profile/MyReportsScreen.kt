@@ -1,7 +1,4 @@
 package com.hoangpha.cityguard.ui.profile
-
-// TV2 - Trần Hữu Thịnh: đổi bố cục My Reports theo prototype; giữ API phân trang theo JWT.
-// Không thêm report mẫu, không sửa nghiệp vụ tạo report/vote/comment của TV4.
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -39,8 +36,9 @@ private val ReportsCanvas = Color(0xFFFFF8D7)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel = viewModel()) {
+    // Card lấy từ API, empty/error/retry riêng; mở report_detail bằng public report.id
     val state by viewModel.state.collectAsStateWithLifecycle()
-    // TV2: tự làm mới khi quay về từ detail/mở app lại; bỏ nút tải lại thường trực.
+    // tự làm mới khi quay về từ detail/mở app lại
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         val current = viewModel.state.value
         if (!current.loading && !current.loadingMore) viewModel.refresh()
@@ -59,14 +57,11 @@ fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel 
             colors = TopAppBarDefaults.topAppBarColors(containerColor = CityGuardYellow)
         )
 
-        // TV2: panel kem có mép bo tròn đè nhẹ lên nền vàng như prototype My Reports.
         Column(
             Modifier.fillMaxWidth().weight(1f).offset(y = (-12).dp)
-                // TV2: bo cả hai góc dưới của panel kem, đồng bộ với màn Hồ sơ.
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
                 .background(ReportsCanvas)
         ) {
-            // TV2: bộ lọc nằm trong panel kem, nhưng vẫn lọc theo status trả về từ API.
             Row(
                 Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)

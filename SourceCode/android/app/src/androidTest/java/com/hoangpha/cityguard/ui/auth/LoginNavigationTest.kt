@@ -17,6 +17,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.hoangpha.cityguard.data.api.FirebaseProvider
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -35,7 +36,7 @@ class LoginNavigationTest {
         composeTestRule.setContent {
             CompositionLocalProvider(LocalInspectionMode provides true) {
                 NavHost(navController, startDestination = "login") {
-                    composable("login") { LoginScreen(navController, auth) }
+                    composable("login") { LoginScreen(navController, auth, socialLoginLauncher = { auth.launchedProvider = it }) }
                     composable("register") { RegisterScreen(navController, auth) }
                     composable("forgot_password") { ForgotPasswordScreen(navController) }
                     composable("main") { Box(Modifier.testTag("map_route")) }
@@ -49,15 +50,25 @@ class LoginNavigationTest {
         assertEquals("forgot_password", navController.currentDestination?.route)
         composeTestRule.onNodeWithText("Khôi phục mật khẩu").assertIsDisplayed()
     }
-    private fun checkProvider(name: String) {
-        composeTestRule.onNodeWithContentDescription("Đăng nhập bằng $name").performScrollTo().assertIsEnabled().performClick()
-        composeTestRule.onNodeWithText("Đăng nhập bằng $name").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Đã hiểu").performClick()
-        assertEquals("login", navController.currentDestination?.route)
+    @Test fun googleButtonStartsGoogleFlowWithoutEnteringMain() {
+        composeTestRule.onNodeWithContentDescription("Đăng nhập bằng Google").performScrollTo().performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(FirebaseProvider.GOOGLE, auth.launchedProvider)
+            assertEquals("login", navController.currentDestination?.route)
+        }
     }
-    @Test fun googleButtonRespondsToClick() = checkProvider("Google")
-    @Test fun facebookButtonRespondsToClick() = checkProvider("Facebook")
-    @Test fun instagramButtonRespondsToClick() = checkProvider("Instagram")
+    @Test fun facebookButtonStartsFacebookFlowWithoutEnteringMain() {
+        composeTestRule.onNodeWithContentDescription("Đăng nhập bằng Facebook").performScrollTo().performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(FirebaseProvider.FACEBOOK, auth.launchedProvider)
+            assertEquals("login", navController.currentDestination?.route)
+        }
+    }
+    @Test fun loginOffersOnlyGoogleAndFacebookWithoutInstagram() {
+        composeTestRule.onNodeWithContentDescription("Đăng nhập bằng Google").assertExists()
+        composeTestRule.onNodeWithContentDescription("Đăng nhập bằng Facebook").assertExists()
+        composeTestRule.onNodeWithContentDescription("Đăng nhập bằng Instagram").assertDoesNotExist()
+    }
 
     @Test fun loginButtonRemainsVisibleAndDisabledWhileSending() {
         composeTestRule.runOnIdle { auth.setState(AuthState.Loading) }
@@ -125,6 +136,11 @@ class LoginNavigationTest {
         assertNull(navController.previousBackStackEntry)
     }
     private class FakeAuthController : AuthController {
+        var launchedProvider: FirebaseProvider? = null
+        override fun beginSocialLogin(provider: FirebaseProvider): Boolean {
+            state.value = AuthState.Loading
+            return true
+        }
         private val state = MutableStateFlow<AuthState>(AuthState.Idle)
         override val authState: StateFlow<AuthState> = state
         var registerCalls = 0

@@ -1,6 +1,4 @@
 package com.hoangpha.cityguard.ui.auth
-
-// TV2 - Trần Hữu Thịnh: dùng một kiểu nút gửi cho Login/Register, không tháo nút khỏi layout khi đang gọi API.
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -21,7 +19,7 @@ internal fun AuthSubmitButton(
 ) {
     Button(
         onClick = onClick,
-        enabled = !loading, // TV2: chặn gửi trùng, nhưng giữ nguyên vị trí/kích thước của nút.
+        enabled = !loading, // chặn gửi trùng, nhưng giữ nguyên vị trí/kích thước của nút.
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag(tag)
             .semantics { stateDescription = if (loading) loadingText else "Sẵn sàng" },
         colors = ButtonDefaults.buttonColors(

@@ -1,0 +1,5 @@
+# Copy to facebook.local.properties (ignored by Git).
+# Client Token: Meta > App settings > Advanced > Security > Client token.
+# NEVER put App Secret or a Firebase service-account key in Android.
+FACEBOOK_APP_ID=2203966780555027
+FACEBOOK_CLIENT_TOKEN=

@@ -1,0 +1,51 @@
+CITYGUARD — BẢN ĐỒ GHI CHÚ CODE TV2
+Owner: Trần Hữu Thịnh | Phối hợp: TV4/TV5
+Ngày: 27/11/2026
+
+Đường dẫn tương đối tính từ SourceCode/android. Dòng tính từ source đã cập nhật.
+
+TV2-01 | app/src/main/java/com/hoangpha/cityguard/data/api/AuthApi.kt:2
+// [TV2-01] Owner: Trần Hữu Thịnh. Contract Android -> TV5: idToken là Firebase ID Token, // provider chỉ GOOGLE/FACEBOOK; response giữ ApiResponse<AuthResponse>, expiresIn tính bằng ms.
+
+TV2-02 | app/src/main/java/com/hoangpha/cityguard/ui/auth/SocialLoginActivity.kt:147
+// [TV2-02] Google ID token/Facebook access token chỉ đổi credential tại Firebase. // getIdToken(true) bên dưới mới là token gửi TV5; Firebase UID không thay thế users.id.
+
+TV2-03 | app/src/main/java/com/hoangpha/cityguard/ui/auth/AuthViewModel.kt:126
+// [TV2-03] Register 201 -> quay về Login; login local/social -> lưu JWT CityGuard. // TV5 phải trả users.id cũ khi đăng nhập lại/liên kết; Android không tự gộp user theo email.
+
+TV2-04 | app/src/main/java/com/hoangpha/cityguard/data/local/SessionManager.kt:35
+// [TV2-04] Phiên duy nhất của app: JWT CityGuard + refreshToken + users.id + expiresAt. // expiresIn là millisecond; lưu refreshToken nhưng thiết kế hiện tại hết hạn sẽ về Login, chưa tự refresh.
+
+TV2-05 | app/src/main/java/com/hoangpha/cityguard/data/api/ApiClient.kt:15
+// [TV2-05] API bảo vệ dùng Bearer JWT CityGuard, không gửi X-User-Id/Firebase ID Token. // 401 auth là lỗi đăng nhập; 401 API bảo vệ chỉ xóa đúng phiên đã gửi request đó.
+
+TV2-06 | app/src/main/java/com/hoangpha/cityguard/data/api/ApiErrors.kt:18
+// [TV2-06] Nhận 2xx kể cả 201; TV5 giữ field message cho validation/401/403/409. // Lỗi mạng/timeout chỉ hiện lỗi và cho thử lại, không chuyển thành đăng nhập thành công.
+
+TV2-07 | app/src/main/java/com/hoangpha/cityguard/MainActivity.kt:64
+// [TV2-07] Chốt phiên ở navigation gốc: chờ DataStore trước khi quyết định main/Login. // Logout/hết hạn rời main và bỏ stack màn bảo vệ; cần nghiệm thu đổi user A -> B trên máy thật.
+
+TV2-08 | app/src/main/java/com/hoangpha/cityguard/data/api/ProfileApi.kt:18
+// [TV2-08] /me xác định user từ JWT phía server, không nhận userId do Android tự khai. // Summary phẳng: username/email/displayName/avatarUrl/role/reportCount/confirmedReports.
+
+TV2-09 | app/src/main/java/com/hoangpha/cityguard/ui/profile/ProfileViewModel.kt:18
+// [TV2-09] Runtime dùng ProfileApi thật; fake chỉ được truyền từ test. // Loading/error/retry giữ dữ liệu đã tải; chưa thay thế kiểm thử backend tắt trên thiết bị thật.
+
+TV2-10 | app/src/main/java/com/hoangpha/cityguard/ui/profile/MyReportsViewModel.kt:22
+// [TV2-10] TV5 lọc theo principal JWT + status rồi phân trang, không lọc user ở Android. // Android chỉ ghép trang/distinct id; bảo vệ quyền sở hữu phải được test bằng hai JWT thật.
+
+TV2-11 | app/src/main/java/com/hoangpha/cityguard/ui/profile/ProfileScreen.kt:44
+// [TV2-11] username/role vẫn có trong DTO, UI hiện displayName/email và summary theo bố cục hiện tại. // avatarUrl từ backend được render; thiếu/lỗi ảnh thì dùng icon. "Bị phản hồi" chưa có số liệu API.
+
+TV2-12 | app/build.gradle.kts:18
+// [TV2-12] Debug được dùng emulator/local. Release không fallback sang debug endpoint. // TV5 cung cấp HTTPS thật qua CITYGUARD_RELEASE_BASE_URL; signing/SHA/Key Hash release cần bổ sung trước bàn giao release.
+
+TV2-13 | app/src/main/java/com/hoangpha/cityguard/ui/profile/MyReportsScreen.kt:42
+// [TV2-13] Card lấy từ API, empty/error/retry riêng; mở report_detail bằng public report.id. // Màn này không tạo report/vote/comment và không đổi nghiệp vụ của TV4.
+
+TV2-14 | app/src/main/java/com/hoangpha/cityguard/ui/auth/LoginScreen.kt:94
+// [TV2-14] Bấm icon Google/Facebook -> SDK thật; chỉ AuthState.Success sau API mới vào main. // Hủy OAuth trả Idle. Không coi Firebase login thành công là đã có phiên CityGuard.
+
+Đọc TV2-DOI-CHIEU-YEU-CAU.txt và TV5-HUONG-DAN-TIEP-NHAN.txt để đối chiếu phạm vi.
+Lỗi thực tế backend 500 và Facebook scope: TV5-LOI-DANG-NHAP-500.txt.
+

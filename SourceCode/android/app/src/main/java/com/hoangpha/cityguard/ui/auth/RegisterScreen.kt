@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard.ui.auth
 
-// TV2 - Trần Hữu Thịnh: Giữ form gốc; đăng ký xong trở về Login, không tự tạo phiên đăng nhập.
-
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.rememberScrollState
@@ -62,7 +60,6 @@ fun RegisterScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val isLoading = authState is AuthState.Loading
     val keyboard = LocalSoftwareKeyboardController.current
-    // TV2: Back hủy request đang chờ, tránh một form đã đóng vẫn nhận kết quả và tự chuyển màn.
     fun goBack() {
         authViewModel.cancelPending()
         navController.popBackStack()
@@ -73,7 +70,7 @@ fun RegisterScreen(
         when (val state = authState) {
             is AuthState.Registered -> {
                 authViewModel.resetState()
-                // TV2: bỏ form đăng ký khỏi back stack; chỉ chuyển username và thông báo, không chuyển mật khẩu/JWT.
+                // bỏ form đăng ký khỏi back stack; chỉ chuyển username và thông báo, không chuyển mật khẩu/JWT.
                 navController.navigate("login") {
                     popUpTo(navController.graph.id) { inclusive = false }
                     launchSingleTop = true
@@ -102,8 +99,6 @@ fun RegisterScreen(
         ) {
             Icon(Icons.Filled.ArrowBack, contentDescription = "Quay lại", tint = CityGuardBlack)
         }
-        // ẢNH NỀN NHÀ RÕ HƠN
-        // Giữ tỷ lệ ảnh; neo đáy để thành phố và con đường không bị lệch giữa các màn.
         Image(
             painter = painterResource(id = R.drawable.bg_cityguard_auth),
             contentDescription = null,
@@ -111,7 +106,6 @@ fun RegisterScreen(
             contentScale = ContentScale.Crop,
             alignment = Alignment.BottomCenter
         )
-        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
         Box(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
@@ -249,8 +243,6 @@ fun RegisterScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // TV2: giữ nút 52dp khi gửi; spinner nhỏ + khóa bấm lặp, không thay cả nút bằng vòng tròn.
             AuthSubmitButton("ĐĂNG KÝ", "Đang đăng ký…", isLoading, "register_submit") {
                 keyboard?.hide()
                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -264,7 +256,6 @@ fun RegisterScreen(
                 Text(
                     text = "Đăng nhập",
                     modifier = Modifier.clickable(enabled = !isLoading) {
-                        // TV2: đăng ký mở từ Splash cũng phải tới đúng Login, không pop nhầm về Splash.
                         authViewModel.resetState()
                         navController.navigate("login") {
                             popUpTo("register") { inclusive = true }
@@ -277,7 +268,6 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
         }
-        // TV2: vẽ thông báo sau form, trên các nội dung khác và ngoài vùng thanh điều hướng/bàn phím.
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding()

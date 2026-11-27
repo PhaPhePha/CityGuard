@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard.ui.auth
 
-// TV2 - Trần Hữu Thịnh: Giữ giao diện gốc; bỏ kiểm tra token khác rỗng vì MainActivity đã kiểm tra cả thời hạn của phiên.
-
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
@@ -39,7 +37,6 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
             contentScale = ContentScale.Crop,
             alignment = Alignment.BottomCenter
         )
-        // Vàng rõ hơn ở vùng thương hiệu, trong dần xuống thành phố để giữ chi tiết ảnh.
         Box(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
@@ -57,7 +54,7 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
         ) {
             Spacer(modifier = Modifier.height(60.dp)) // ko để nội dung bị đẩy xuống thấp
 
-            // 1. CHÈN LOGO VÀO ĐÂY (Phía trên chữ CITYGUARD)
+            // 1. CHÈN LOGO
             Image(
                 painter = painterResource(id = R.drawable.logo_cityguard),
                 contentDescription = "Logo",

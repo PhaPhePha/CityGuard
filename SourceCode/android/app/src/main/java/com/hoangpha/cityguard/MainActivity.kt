@@ -1,7 +1,5 @@
 package com.hoangpha.cityguard
 
-// TV2 - Trần Hữu Thịnh: Quan sát phiên ở navigation gốc để chặn main khi chưa đăng nhập và xóa back stack lúc hết phiên/logout.
-
 import android.os.Bundle
 import android.annotation.SuppressLint
 import android.os.Build
@@ -27,10 +25,6 @@ import com.hoangpha.cityguard.ui.theme.CityGuardAppTheme
 import java.net.URI
 
 class MainActivity : ComponentActivity() {
-    // TV2 - Trần Hữu Thịnh: xin quyền local của Android 17 qua hộp thoại hệ thống.
-    // Không tự gửi lại Login/Register sau khi được cấp quyền, tránh tạo yêu cầu trùng.
-    // TV2: lint cảnh báo do Fragment cũ trong dependency của nhóm; màn này kế thừa
-    // ComponentActivity trực tiếp, không đi qua FragmentActivity nên không gặp lỗi chuyển tiếp quyền đó.
     @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Toast.makeText(
@@ -41,7 +35,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestLocalBackendPermissionIfNeeded() {
-        // TV2: chỉ bản debug dùng localhost/LAN mới hỏi; không yêu cầu quyền này ở bản release.
         if (!BuildConfig.DEBUG || Build.VERSION.SDK_INT < 37) return
         val host = runCatching { URI(BuildConfig.BASE_URL).host.orEmpty().lowercase() }.getOrDefault("")
         val localHost = host == "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
@@ -68,7 +61,6 @@ class MainActivity : ComponentActivity() {
                     val nav = rememberNavController()
                     val entry by nav.currentBackStackEntryAsState()
                     val route = entry?.destination?.route
-                    // TV2: dùng cùng một chốt phiên cho mọi màn con; pop tới graph gốc để Back không mở lại dữ liệu user cũ.
                     LaunchedEffect(session, route) {
                         val target = when {
                             session is SessionStatus.SignedIn && route != "main" -> "main"
@@ -84,7 +76,7 @@ class MainActivity : ComponentActivity() {
                         composable("splash") { SplashScreen(nav, sessionManager) }
                         composable("login") { LoginScreen(nav, auth) }
                         composable("register") { RegisterScreen(nav, auth) }
-                        // TV2: khôi phục route Quên mật khẩu theo yêu cầu; form báo rõ nếu chức năng khôi phục chưa khả dụng.
+                        // khôi phục route Quên mật khẩu theo yêu cầu
                         composable("forgot_password") { ForgotPasswordScreen(nav) }
                         composable("main") {
                             if (session is SessionStatus.SignedIn) MainScreen(auth, onLogout = {})

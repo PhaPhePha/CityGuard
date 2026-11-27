@@ -1,7 +1,4 @@
 package com.hoangpha.cityguard.data.api
-
-// TV2 - Trần Hữu Thịnh: API mới cho TV2 trong package data.api hiện có; /me dùng JWT để backend tự xác định chủ tài khoản.
-
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -15,6 +12,8 @@ data class PageDto<T>(
     val totalElements: Long, val totalPages: Int, val hasNext: Boolean
 )
 interface ProfileApi {
+    // [TV2-08] /me xác định user từ JWT phía server, không nhận userId do Android tự khai.
+    // Summary phẳng: username/email/displayName/avatarUrl/role/reportCount/confirmedReports.
     @GET("api/v1/me/summary")
     suspend fun summary(): Response<ApiResponse<ProfileSummaryDto>>
     @GET("api/v1/me/reports")
