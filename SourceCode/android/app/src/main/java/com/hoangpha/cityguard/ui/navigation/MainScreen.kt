@@ -3,6 +3,9 @@ package com.hoangpha.cityguard.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -41,13 +44,21 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
     val navController = rememberNavController()
     val items = listOf(BottomNavItem.Map, BottomNavItem.CreateReport, BottomNavItem.Community, BottomNavItem.Profile)
 
-    // Sử dụng Box thay vì Scaffold để không hiện nút 3 gạch
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute in items.map { it.route } || currentRoute == "my_reports"
+    // chừa cả vùng điều hướng hệ thống cho hai màn này, tránh thẻ/nút nằm dưới thanh tab.
+    val bottomPadding = when {
+        !showBottomBar -> 0.dp
+        currentRoute == "profile" || currentRoute == "my_reports" -> 80.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        else -> 80.dp
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         // Nội dung các màn hình
         NavHost(
             navController = navController,
             startDestination = "map",
-            modifier = Modifier.padding(bottom = 80.dp)
+            modifier = Modifier.padding(bottom = bottomPadding)
         ) {
             composable("map") {
                 MapRoute(
@@ -84,23 +95,26 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
         }
 
         // Thanh điều hướng dưới cùng
-        NavigationBar(
+        if (showBottomBar) NavigationBar(
             modifier = Modifier.align(Alignment.BottomCenter),
+            // TV2: thanh dưới trắng theo yêu cầu đồng bộ; nội dung hai màn vẫn giữ nền vàng/kem riêng.
             containerColor = CityGuardWhite
         ) {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-            val showBottomBar = currentRoute in items.map { it.route }
-            if (showBottomBar) items.forEach { item ->
+            items.forEach { item ->
                 NavigationBarItem(
                     icon = { Icon(item.icon, contentDescription = item.title) },
                     label = { Text(item.title) },
-                    selected = currentRoute == item.route,
+                    selected = currentRoute == item.route || (currentRoute == "my_reports" && item.route == "profile"),
                     onClick = {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                        // đang ở My Reports mà bấm Hồ sơ thì trở về hồ sơ, không restore lại chính màn con.
+                        if (currentRoute == "my_reports" && item.route == "profile") {
+                            navController.popBackStack("profile", inclusive = false)
+                        } else {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     },
                     colors = NavigationBarItemDefaults.colors(

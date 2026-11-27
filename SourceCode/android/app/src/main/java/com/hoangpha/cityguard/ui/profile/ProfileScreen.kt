@@ -1,91 +1,217 @@
 package com.hoangpha.cityguard.ui.profile
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.hoangpha.cityguard.ui.auth.AuthController
-import com.hoangpha.cityguard.ui.theme.CityGuardBlack
-import com.hoangpha.cityguard.ui.theme.CityGuardWhite
-import com.hoangpha.cityguard.ui.theme.CityGuardYellow
+import com.hoangpha.cityguard.ui.theme.*
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+
+private val ProfileCanvas = Color(0xFFFFF8D7)
 
 @Composable
 fun ProfileScreen(
     navController: NavController,
     authViewModel: AuthController,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    viewModel: ProfileViewModel = viewModel()
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(CityGuardWhite)) {
-        // Header màu vàng
-        Box(modifier = Modifier.fillMaxWidth().background(CityGuardYellow).padding(24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(64.dp).clip(CircleShape).background(CityGuardWhite), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, contentDescription = "Avatar", tint = CityGuardBlack, modifier = Modifier.size(40.dp))
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(text = "Nguyễn Văn A", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = CityGuardBlack)
-                    Text(text = "nguyenvana@gmail.com", fontSize = 14.sp, color = CityGuardBlack.copy(alpha = 0.7f))
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val profile = state.profile
+    val context = LocalContext.current
+    var menuInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var signingOut by remember { mutableStateOf(false) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (!viewModel.state.value.loading) viewModel.load()
+    }
+
+    Column(Modifier.fillMaxSize().background(CityGuardYellow)) {
+        Box(Modifier.fillMaxWidth()) {
+            Column(
+                Modifier.fillMaxWidth().background(CityGuardYellow).statusBarsPadding()
+                    .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 24.dp)
+            ) {
+                Text("Hồ sơ", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = CityGuardBlack)
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(80.dp).clip(CircleShape).background(CityGuardWhite),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val avatarUrl = profile?.avatarUrl?.trim()?.takeIf { it.isNotEmpty() }
+                        if (avatarUrl == null) {
+                            ProfileAvatarPlaceholder()
+                        } else {
+                            // Không tự lấy tên/ảnh từ SDK rồi ghi đè dữ liệu tài khoản local.
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(context).data(avatarUrl).crossfade(true).build(),
+                                contentDescription = "Ảnh đại diện",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                loading = { ProfileAvatarPlaceholder() },
+                                error = { ProfileAvatarPlaceholder() }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            profile?.displayName?.takeIf { it.isNotBlank() }
+                                ?: profile?.username?.takeIf { it.isNotBlank() }
+                                ?: if (state.loading) "Đang tải hồ sơ…" else "Hồ sơ của bạn",
+                            fontWeight = FontWeight.Bold, fontSize = 20.sp, color = CityGuardBlack,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(profile?.email.orEmpty(), fontSize = 13.sp, color = CityGuardBlack.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }
 
-        // Stats Row
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            StatItem("Tổng báo cáo", "2")
-            StatItem("Đã xác nhận", "11")
-            StatItem("Bị phản hồi", "4")
-        }
+        Column(
+            Modifier.fillMaxWidth().weight(1f).padding(bottom = 12.dp)
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
+                .background(ProfileCanvas).verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp).padding(top = 12.dp, bottom = 24.dp)
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProfileStatCard("Tổng báo cáo", profile?.reportCount?.toString() ?: "—", Modifier.weight(1f))
+                ProfileStatCard("Đã xác nhận", profile?.confirmedReports?.toString() ?: "—", Modifier.weight(1f))
+                ProfileStatCard("Bị phản hồi", "—", Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(24.dp))
 
-        Divider(thickness = 1.dp, color = Color.LightGray)
+            if (state.loading && profile == null) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 12.dp), color = CityGuardBlack)
+            }
+            state.error?.let { message ->
+                Surface(color = CityGuardWhite, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        TextButton(onClick = viewModel::load) { Text("Thử lại", color = CityGuardBlack) }
+                    }
+                }
+            }
 
-        ProfileMenuItem("My Reports", "Xem báo cáo của tôi", Icons.Default.List) {
-            navController.navigate("my_reports")
+            ProfileMenuItem("My Reports", "Xem báo cáo của tôi", Icons.AutoMirrored.Filled.ListAlt) {
+                navController.navigate("my_reports") { launchSingleTop = true }
+            }
+            ProfileMenuItem("Xác nhận của tôi", "Các báo cáo tôi đã xác nhận", Icons.Default.CheckCircleOutline) {
+                menuInfo = "Xác nhận của tôi" to (profile?.let {
+                    "Bạn đã gửi ${it.confirmedReports} lượt xác nhận. Phiên bản hiện tại chưa hỗ trợ xem danh sách báo cáo đã xác nhận."
+                } ?: "Chưa tải được số lượt xác nhận. Hãy kiểm tra kết nối rồi thử lại.")
+            }
+            ProfileMenuItem("Cài đặt", "Thông báo, quyền riêng tư", Icons.Default.Settings) {
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
+            }
+            ProfileMenuItem("Trợ giúp", "Hướng dẫn sử dụng", Icons.Default.HelpOutline) {
+                menuInfo = "Trợ giúp" to "• Đăng ký tài khoản, sau đó đăng nhập để sử dụng.\n• Bản đồ: xem sự cố và mở chi tiết.\n• My Reports: xem các báo cáo của tài khoản đang đăng nhập.\n• Khi tải dữ liệu lỗi: kiểm tra mạng rồi chọn Thử lại.\n• Đăng xuất: kết thúc phiên trên thiết bị."
+            }
+            Spacer(Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !signingOut) {
+                        if (!signingOut) {
+                            signingOut = true
+                            authViewModel.logout(onLogout)
+                        }
+                    }
+                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = CityGuardRed, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(if (signingOut) "Đang đăng xuất…" else "Đăng xuất", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = CityGuardRed)
+            }
         }
-        ProfileMenuItem("Xác nhận của tôi", "Các báo cáo tôi đã xác nhận", Icons.Default.CheckCircle) { }
-        ProfileMenuItem("Cài đặt", "Thông báo, quyền riêng tư", Icons.Default.Settings) { }
-        ProfileMenuItem("Trợ giúp", "Hướng dẫn sử dụng", Icons.Default.Help) { }
-        ProfileMenuItem("Đăng xuất", "", Icons.Default.ExitToApp, textColor = Color.Red) {
-            authViewModel.logout(onLogout)
-        }
+    }
+    menuInfo?.let { (title, message) ->
+        AlertDialog(
+            onDismissRequest = { menuInfo = null },
+            title = { Text(title) }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = { menuInfo = null }) { Text("Đóng") } }
+        )
     }
 }
 
 @Composable
-fun StatItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = value, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = CityGuardBlack)
-        Text(text = label, fontSize = 12.sp, color = Color.Gray)
+private fun ProfileAvatarPlaceholder() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Icon(Icons.Default.Person, contentDescription = "Ảnh đại diện mặc định",
+            modifier = Modifier.size(48.dp), tint = Color(0xFF6689A3))
     }
 }
 
 @Composable
-fun ProfileMenuItem(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, textColor: Color = CityGuardBlack, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun ProfileStatCard(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier, 
+        colors = CardDefaults.cardColors(containerColor = CityGuardWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = title, tint = textColor)
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 16.sp, color = textColor, fontWeight = FontWeight.Medium)
-            if (subtitle.isNotEmpty()) {
-                Text(text = subtitle, fontSize = 12.sp, color = Color.Gray)
-            }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = CityGuardBlack)
+            Spacer(Modifier.height(4.dp))
+            Text(label, fontSize = 12.sp, color = Color.Gray, maxLines = 1)
         }
-        Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "Arrow", tint = Color.Gray)
     }
-    Divider(thickness = 0.5.dp, color = Color.LightGray, modifier = Modifier.padding(start = 16.dp))
+}
+
+@Composable
+fun ProfileMenuItem(title: String, subtitle: String, icon: ImageVector, textColor: Color = CityGuardBlack, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp),
+        shape = RoundedCornerShape(12.dp), 
+        colors = CardDefaults.cardColors(containerColor = CityGuardWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = textColor, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = textColor)
+                if (subtitle.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, fontSize = 12.sp, color = Color.Gray)
+                }
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+        }
+    }
 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 class ReportDetailViewModel @JvmOverloads constructor(
     savedStateHandle: SavedStateHandle,
@@ -26,12 +27,27 @@ class ReportDetailViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(ReportDetailUiState())
     val uiState: StateFlow<ReportDetailUiState> = _uiState.asStateFlow()
 
-    init {
-        // Lắng nghe report theo ID: vote hay comment đổi thì màn hình tự cập nhật
-        viewModelScope.launch {
-            repository.observeReport(reportId).collect { report ->
+    // TV2 - Thịnh, tích hợp TV4: My Reports mở detail khi mất mạng phải có error/retry thay vì crash.
+    // Giữ nguyên nghiệp vụ vote/comment của TV4; chỉ quản lý lượt tải chi tiết ban đầu và thử lại.
+    private var loadJob: Job? = null
+    init { load() }
+
+    fun load() {
+        loadJob?.cancel()
+        _uiState.update { it.copy(isLoading = true, notFound = false, errorMessage = null) }
+        loadJob = viewModelScope.launch {
+            try {
+                repository.observeReport(reportId).collect { report ->
+                    _uiState.update {
+                        it.copy(isLoading = false, report = report, notFound = report == null, errorMessage = null)
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e // TV2: đóng màn hình/đổi request là hủy hợp lệ, không phải lỗi mạng.
+            } catch (_: Exception) {
                 _uiState.update {
-                    it.copy(isLoading = false, report = report, notFound = report == null)
+                    it.copy(isLoading = false, report = null, notFound = false,
+                        errorMessage = "Không tải được báo cáo. Kiểm tra kết nối rồi thử lại.")
                 }
             }
         }
