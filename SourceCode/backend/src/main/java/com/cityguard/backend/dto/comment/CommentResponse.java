@@ -16,8 +16,8 @@ public class CommentResponse {
     private String id;
     private String authorName;
     private String authorId;
+    private String body;
     private String content;
     private String createdAt;
     private boolean isOwner;
 }
-

@@ -4,9 +4,10 @@ import com.cityguard.backend.dto.common.ErrorResponse;
 import com.cityguard.backend.enums.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 
 /**
  * Xử lý ngoại lệ tập trung toàn ứng dụng (theo DacTaKyThuat Trang 9, Mục 6.3).
@@ -48,5 +49,12 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("Dữ liệu đầu vào không hợp lệ");
         return ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Dữ liệu JSON không hợp lệ hoặc sai định dạng: {}", ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "Dữ liệu JSON không hợp lệ hoặc sai định dạng"));
     }
 }

@@ -16,6 +16,9 @@ import java.util.UUID;
 public interface CommentRepository extends JpaRepository<Comment, Long> {
     List<Comment> findByReportIdAndIsHiddenFalseOrderByCreatedAtDesc(Long reportId);
 
+    @Query("SELECT c FROM Comment c LEFT JOIN FETCH c.user WHERE c.report.id = :reportId AND c.isHidden = false AND c.deletedAt IS NULL ORDER BY c.createdAt DESC, c.id DESC")
+    List<Comment> findActiveCommentsListByReportId(@Param("reportId") Long reportId);
+
     @Query(value = "SELECT c FROM Comment c LEFT JOIN FETCH c.user WHERE c.report.id = :reportId AND c.isHidden = false AND c.deletedAt IS NULL ORDER BY c.createdAt DESC, c.id DESC",
            countQuery = "SELECT COUNT(c) FROM Comment c WHERE c.report.id = :reportId AND c.isHidden = false AND c.deletedAt IS NULL")
     Page<Comment> findActiveCommentsByReportId(@Param("reportId") Long reportId, Pageable pageable);

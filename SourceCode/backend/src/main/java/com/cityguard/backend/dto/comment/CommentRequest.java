@@ -8,8 +8,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 /**
  * DTO yêu cầu gửi bình luận cho báo cáo sự cố (chuẩn hóa theo NFR-MAINT-01).
  */
@@ -24,5 +22,6 @@ public class CommentRequest {
     @JsonAlias({"content", "text"})
     private String body;
 
-    private UUID clientRequestId;
+    @JsonAlias({"requestId", "request_id", "client_request_id"})
+    private String clientRequestId;
 }

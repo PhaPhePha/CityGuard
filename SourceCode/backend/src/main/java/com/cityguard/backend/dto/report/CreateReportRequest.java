@@ -12,8 +12,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 /**
  * DTO yêu cầu tạo báo cáo sự cố mới (khớp Schema V3 & chuẩn hóa theo NFR-MAINT-01).
  */
@@ -43,8 +41,9 @@ public class CreateReportRequest {
     @Size(max = 500, message = "Địa chỉ snapshot không được vượt quá 500 ký tự")
     private String addressSnapshot;
 
-    @Pattern(regexp = "^https://\\S+$", message = "Hình ảnh phải là URL an toàn bắt đầu bằng https://")
+    @Pattern(regexp = "^https?://\\S+$", message = "Hình ảnh phải là URL hợp lệ bắt đầu bằng http:// hoặc https://")
     private String imageUrl;
 
-    private UUID clientRequestId;
+    @JsonAlias({"requestId", "request_id", "client_request_id"})
+    private String clientRequestId;
 }

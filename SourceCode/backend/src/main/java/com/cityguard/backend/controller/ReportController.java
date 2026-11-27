@@ -21,9 +21,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,7 +33,6 @@ import java.util.List;
  * Controller quản lý và truy vấn báo cáo sự cố giao thông (theo DacTaKyThuat Trang 8, Mục 6.0 & WBS 4.3.1).
  */
 @RestController
-@RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
 @Tag(name = "Report Management", description = "Các API truy vấn và quản lý báo cáo sự cố giao thông")
 public class ReportController {
@@ -41,10 +40,10 @@ public class ReportController {
     private final ReportService reportService;
     private final CommentService commentService;
 
-    @GetMapping
+    @GetMapping("/api/v1/reports")
     @Operation(
             summary = "Lấy danh sách báo cáo sự cố",
-            description = "Lấy danh sách các báo cáo sự cố giao thông theo vùng bản đồ (bounding box), loại sự cố và trạng thái"
+            description = "Lấy danh sách các báo cáo sự cố giao thông theo vùng bản đồ (bounding box), loại sự cố, trạng thái và sắp xếp (nearby/latest)"
     )
     public ResponseEntity<ApiResponse<List<ReportResponse>>> getReports(
             @Parameter(description = "Tọa độ bounding box dạng minLng,minLat,maxLng,maxLat (ví dụ: 106.70,10.79,106.72,10.81)")
@@ -54,16 +53,35 @@ public class ReportController {
             @RequestParam(required = false) ReportType type,
 
             @Parameter(description = "Lọc theo trạng thái báo cáo")
-            @RequestParam(required = false) ReportStatus status
+            @RequestParam(required = false) ReportStatus status,
+
+            @Parameter(description = "Chế độ sắp xếp: nearby (theo khoảng cách) hoặc latest (mới nhất)")
+            @RequestParam(required = false) String sort,
+
+            @Parameter(description = "Vĩ độ hiện tại của người dùng (dùng khi sort=nearby)")
+            @RequestParam(required = false) Double userLat,
+
+            @Parameter(description = "Kinh độ hiện tại của người dùng (dùng khi sort=nearby)")
+            @RequestParam(required = false) Double userLng
     ) {
-        List<ReportResponse> reports = reportService.getReports(bbox, type, status);
+        List<ReportResponse> reports = reportService.getReports(bbox, type, status, sort, userLat, userLng);
         return ResponseEntity.ok(ApiResponse.success(reports));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/api/v1/reports/mine")
+    @Operation(
+            summary = "Danh sách báo cáo của tôi (mảng phẳng)",
+            description = "Lấy danh sách các báo cáo do tài khoản hiện tại tạo dưới dạng danh sách phẳng"
+    )
+    public ResponseEntity<ApiResponse<List<ReportResponse>>> getMyReports() {
+        List<ReportResponse> reports = reportService.getMyReports();
+        return ResponseEntity.ok(ApiResponse.success(reports));
+    }
+
+    @GetMapping("/api/v1/reports/{id}")
     @Operation(
             summary = "Lấy chi tiết báo cáo sự cố theo ID",
-            description = "Trả về thông tin chi tiết của một báo cáo sự cố cụ thể kèm điểm tin cậy và số lượng vote"
+            description = "Trả về thông tin chi tiết của một báo cáo sự cố cụ thể kèm điểm tin cậy, số lượng vote và danh sách bình luận"
     )
     public ResponseEntity<ApiResponse<ReportResponse>> getReportById(
             @Parameter(description = "Mã định danh báo cáo sự cố (ví dụ: rpt_001 hoặc public_id)")
@@ -73,7 +91,7 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success("Lấy thông tin báo cáo thành công", report));
     }
 
-    @PostMapping
+    @PostMapping("/api/v1/reports")
     @Operation(
             summary = "Tạo báo cáo sự cố mới",
             description = "Người dùng đã đăng nhập gửi thông tin báo cáo sự cố (có idempotency qua clientRequestId)"
@@ -86,10 +104,10 @@ public class ReportController {
                 .body(ApiResponse.success("Tạo báo cáo thành công", response));
     }
 
-    @PutMapping("/{id}/vote")
+    @RequestMapping(value = "/api/v1/reports/{id}/vote", method = {RequestMethod.PUT, RequestMethod.POST})
     @Operation(
-            summary = "Bình chọn / xác nhận sự cố",
-            description = "Xác nhận sự cố còn tồn tại (CONFIRMED) hoặc không còn nữa (NO_LONGER) và tự động cập nhật Trust Score"
+            summary = "Bình chọn / xác nhận sự cố (hỗ trợ PUT & POST, toggle hủy vote)",
+            description = "Xác nhận sự cố còn tồn tại (CONFIRMED) hoặc không còn nữa (NO_LONGER), bấm lại cùng loại sẽ hủy vote"
     )
     public ResponseEntity<ApiResponse<ReportResponse>> vote(
             @Parameter(description = "Mã định danh báo cáo sự cố")
@@ -97,22 +115,10 @@ public class ReportController {
             @Valid @RequestBody VoteRequest request
     ) {
         ReportResponse response = reportService.vote(id, request);
-        return ResponseEntity.ok(ApiResponse.success("Xác nhận sự cố thành công", response));
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật xác nhận sự cố thành công", response));
     }
 
-    @PostMapping("/{id}/vote")
-    @Operation(
-            summary = "Bình chọn / xác nhận sự cố (dự phòng POST)",
-            description = "Tương thích ngược cho các client gọi phương thức POST"
-    )
-    public ResponseEntity<ApiResponse<ReportResponse>> votePost(
-            @PathVariable String id,
-            @Valid @RequestBody VoteRequest request
-    ) {
-        return vote(id, request);
-    }
-
-    @GetMapping("/{id}/comments")
+    @GetMapping("/api/v1/reports/{id}/comments")
     @Operation(
             summary = "Lấy danh sách bình luận của báo cáo",
             description = "Lấy danh sách bình luận được phân trang (mặc định 20, tối đa 50)"
@@ -126,7 +132,7 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PostMapping("/{id}/comments")
+    @PostMapping("/api/v1/reports/{id}/comments")
     @Operation(
             summary = "Thêm bình luận cho báo cáo",
             description = "Người dùng đã đăng nhập thêm bình luận vào báo cáo sự cố"
