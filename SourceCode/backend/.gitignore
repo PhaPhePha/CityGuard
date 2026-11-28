@@ -38,6 +38,8 @@ build/
 !.env.example
 application-local.yml
 application-local.properties
+*firebase-adminsdk*.json
+firebase-service-account.json
 
 ### Backups & Logs (BanGiaoDB_V2 Mục 10.1) ###
 *.backup
