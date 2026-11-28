@@ -1,9 +1,12 @@
 package com.cityguard.backend.controller;
 
+import com.cityguard.backend.dto.auth.AuthResponse;
+import com.cityguard.backend.dto.auth.FirebaseLoginRequest;
+import com.cityguard.backend.dto.auth.FirebaseLoginRequest;
+import com.cityguard.backend.dto.auth.FirebaseLoginRequest;
 import com.cityguard.backend.dto.auth.LoginRequest;
 import com.cityguard.backend.dto.auth.RefreshTokenRequest;
 import com.cityguard.backend.dto.auth.RegisterRequest;
-import com.cityguard.backend.dto.auth.AuthResponse;
 import com.cityguard.backend.dto.common.ApiResponse;
 import com.cityguard.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +44,13 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", response));
+    }
+
+    @PostMapping({"/firebase", "/firebase-login"})
+    @Operation(summary = "Đăng nhập Firebase", description = "Xác thực Firebase ID Token (Google/Facebook) để nhận JWT access token CityGuard")
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithFirebase(@Valid @RequestBody FirebaseLoginRequest request) {
+        AuthResponse response = authService.loginWithFirebase(request);
+        return ResponseEntity.ok(ApiResponse.success("Đăng nhập Firebase thành công", response));
     }
 
     @PostMapping("/refresh")
