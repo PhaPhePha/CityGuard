@@ -139,7 +139,7 @@ class ApiReportRepository(
             newReport.longitude,
             uploadedImageUrl
         )
-        
+
         val report = toDomain(requireReport(api.create(request)))
         uploadedImageUrls.remove(cacheKey)       // thành công rồi thì không cần nhớ nữa
         return report
