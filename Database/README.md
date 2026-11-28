@@ -1,112 +1,101 @@
-# CityGuard Database V3 — Hướng dẫn Khởi tạo cho Thành viên Nhóm (PostgreSQL 17 & Docker Compose)
+# CityGuard Database V4 (Firebase Authentication & Social Login)
 
-Thư mục `Database/` chứa toàn bộ cấu trúc cơ sở dữ liệu chính thức **CityGuard V3** (8 bảng, khóa chính nội bộ `BIGINT`, định danh công khai `reports.public_id` dạng `rpt_<ULID 26 ký tự>`, chuỗi migration `V1 → V2 → V3`, dữ liệu mẫu `seed.sql` và cấu hình Docker Compose).
+PostgreSQL 17+. One shared database for Android/Backend/Admin; clients access it through Backend. No extensions or PostGIS required. Never run migrations or reset scripts on the active `cityguard_db` without explicit approval.
 
-> **Quy tắc an toàn**:
-> - Tuyệt đối **không commit file `.env`**, mật khẩu thật, thư mục `backups/` hay file `.backup`/`.dump` lên Git.
-> - Cổng Docker mặc định là **`5433`** (`127.0.0.1:5433`) để không bao giờ xung đột với PostgreSQL cài trực tiếp trên máy (`5432`).
+## Authoritative schema and files
 
----
+- `migrations/V1__initial_schema.sql`: Pure SQL V1 versioned migration creating the 6 foundational tables (`users`, `categories`, `reports`, `report_votes`, `comments`, `admin_logs`), constraints, 7 `ON DELETE RESTRICT` foreign keys, 12 indexes, `set_updated_at()` function, and 4 triggers.
+- `schema.sql`: restored V1 baseline DDL identical to `migrations/V1__initial_schema.sql`. Do not use as a scratch query file.
+- `preflight-upgrade.sql`: read-only V1 catalog, type, FK, coordinate CHECK and duplicate validation before V2.
+- `migrations/V2__metrics_tokens_request_keys.sql`: applies once after V1; adds `report_metrics` and `refresh_tokens`, global `client_request_id` uniqueness per table, and backfills metrics counts.
+- `preflight-v3.sql`: read-only V2 catalog and state validation before applying V3.
+- `migrations/V3__report_public_id_ulid.sql`: applies once after V2; adds `reports.public_id` (format `rpt_` + 26-char Crockford Base32 ULID, NOT NULL, UNIQUE, CHECK). Preserves internal `reports.id BIGINT PK` and all foreign keys.
+- `verify-v3.sql`: read-only Pure SQL verification script confirming all 8 tables and V3 constraints.
+- `preflight-v4.sql`: read-only V3 catalog and state validation before applying V4.
+- `migrations/V4__firebase_auth.sql`: applies once after V3; adds Firebase Authentication & OAuth Provider support (`user_firebase_accounts` and `user_auth_providers`), composite foreign key preventing cross-user mapping, and enables `users.password_hash` to be nullable for OAuth-only users.
+- `verify-v4.sql`: read-only Pure SQL post-upgrade verification confirming all 10 tables, 10 PKs, 13 RESTRICT FKs (including composite FK), triggers, and nullable `password_hash`.
+- `docker-compose.yml` & `.env.example`: Dev/Test Docker Compose setup running PostgreSQL 17 on `127.0.0.1:5433` (isolated from local port `5432`), automatically initializing `V1 -> V2 -> V3 -> V4 -> Verify` on fresh volume, with an optional `--profile demo` service to load `seed.sql`.
+- `bootstrap-v4.py`: automated test database initializer (`Empty DB -> V1 -> Preflight V2 -> V2 -> Preflight V3 -> V3 -> Preflight V4 -> V4 -> Seed Demo -> Verify V4`).
+- `queries.sql`: prepared query examples for report lifecycle and queries.
+- `seed.sql`: 100% Pure SQL development/test fixtures with valid Crockford Base32 ULIDs.
+- `update-demo-passwords.sql`: separate demo password reset; not a migration or seed dependency.
+- `erd.md`, `design-decisions.md`: ERD and architectural rationale.
+- `BACKEND_HANDOFF_V4.md`: detailed technical handoff document and integration guide for the Backend team (TV5).
+- `tests/upgrade-v4-tests.sql`: V4 integration assertions (multi-provider, uniqueness, composite FK cross-mapping prevention, nullability).
+- `tests/run-v4-tests.py`: end-to-end Python test runner testing clean bootstrap, V3→V4 data preservation, functional constraints, rollback, and `pg_dump`/`pg_restore`.
 
-## 1. Khởi tạo nhanh bằng Docker Compose (Khuyến nghị cho toàn bộ thành viên)
+Tables (10): `users`, `categories`, `reports`, `report_votes`, `comments`, `admin_logs`, `report_metrics`, `refresh_tokens`, `user_firebase_accounts`, `user_auth_providers`.
 
-### Bước 1: Tạo file `.env` cục bộ từ `.env.example`
-Mở PowerShell hoặc Terminal tại thư mục gốc của repository `CityGuard`:
+## V4 Firebase Authentication & Social Provider Design
 
+1. **`user_firebase_accounts` (1-1 with `users`)**:
+   - `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`
+   - `user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE RESTRICT`
+   - `firebase_uid VARCHAR(128) NOT NULL UNIQUE` (Firebase Project UID)
+   - `UNIQUE (id, user_id)` (supports Composite FK)
+2. **`user_auth_providers` (1-N with `users`)**:
+   - `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`
+   - `user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT`
+   - `firebase_account_id BIGINT REFERENCES user_firebase_accounts(id) ON DELETE RESTRICT`
+   - `provider VARCHAR(32) NOT NULL CHECK (provider IN ('GOOGLE', 'FACEBOOK'))`
+   - `provider_uid VARCHAR(128) NOT NULL` (Google Sub / Facebook ID)
+   - `email VARCHAR(254)`, `display_name VARCHAR(100)`, `avatar_url TEXT`
+   - `UNIQUE (provider, provider_uid)`: guarantees a social identity is bound to at most one CityGuard user.
+   - `UNIQUE (user_id, provider)`: guarantees a user links at most one account per provider.
+   - **Composite FK**: `FOREIGN KEY (firebase_account_id, user_id) REFERENCES user_firebase_accounts(id, user_id) ON DELETE RESTRICT` guarantees zero cross-user mapping at the database kernel level.
+3. **`users.password_hash` Nullable**:
+   - Allows users registered purely via Google/Facebook to have `password_hash = NULL`.
+   - Local password authentication continues to enforce BCrypt/Argon2id format via `users_password_hash_check`.
+
+## Docker Compose (Dev/Test Environment on Port 5433)
+
+`database/docker-compose.yml` provisions an isolated PostgreSQL 17 instance bound strictly to `127.0.0.1:5433` so it never conflicts with a local PostgreSQL service on port `5432` (`cityguard_db`).
+
+### 1. Fresh Database Initialization (Zero to V4)
 ```powershell
-cd Database
+cd database
 Copy-Item .env.example .env
+# Edit .env and set CITYGUARD_DB_PASSWORD (never commit .env to Git)
+
+# Validate configuration:
+docker-compose config
+
+# Start PostgreSQL 17 and initialize V1 -> V2 -> V3 -> V4 -> Verify on a fresh volume:
+docker-compose up -d
 ```
 
-Mở file `Database/.env` vừa tạo và đổi `CITYGUARD_DB_PASSWORD` thành mật khẩu local của bạn (ví dụ `CityGuardDev2026!`):
-```dotenv
-CITYGUARD_DB_PORT=5433
-CITYGUARD_DB_NAME=cityguard_v3_dev
-CITYGUARD_DB_USER=cityguard
-CITYGUARD_DB_PASSWORD=CityGuardDev2026!
-```
-
-### Bước 2: Khởi động PostgreSQL 17 và tự động chạy Migration `V1 → V2 → V3`
-```powershell
-# Kiểm tra cú pháp cấu hình Docker Compose
-docker compose config
-
-# Khởi động container PostgreSQL 17 ở chế độ nền
-docker compose up -d
-
-# Kiểm tra trạng thái container (đợi trạng thái Healthy)
-docker compose ps
-```
-Khi volume `cityguard_v3_pgdata` mới hoàn toàn, container sẽ tự động chạy lần lượt 6 script trong `/docker-entrypoint-initdb.d/`:
-1. `01_V1__initial_schema.sql` (`migrations/V1__initial_schema.sql`) — Tạo 6 bảng V1, constraints, FKs, indexes, triggers.
-2. `02_preflight_upgrade.sql` (`preflight-upgrade.sql`) — Kiểm tra catalog V1 trước khi lên V2.
-3. `03_V2__metrics_tokens_request_keys.sql` (`migrations/V2__metrics_tokens_request_keys.sql`) — Thêm `report_metrics`, `refresh_tokens`, unique constraints.
-4. `04_preflight_v3.sql` (`preflight-v3.sql`) — Kiểm tra catalog V2 trước khi lên V3.
-5. `05_V3__report_public_id_ulid.sql` (`migrations/V3__report_public_id_ulid.sql`) — Thêm `reports.public_id VARCHAR(30) UNIQUE NOT NULL` (`rpt_` + ULID 26 ký tự).
-6. `06_verify_v3.sql` (`verify-v3.sql`) — Kiểm chứng đủ 8 bảng, 8 PK, 9 FK, 14 indexes, 4 triggers.
-
-### Bước 3: Nạp dữ liệu mẫu Demo (`seed.sql`)
-Dữ liệu mẫu được tách riêng qua profile `demo` để không trộn lẫn với schema migration:
-```powershell
-docker compose --profile demo run --rm seed-demo
-```
-*(Script `seed.sql` có tính idempotent — có thể chạy lại an toàn mà không gây lỗi trùng dữ liệu).*
-
-### Bước 4: Thông tin kết nối từ Backend (`SourceCode/backend`) và DBeaver
-- **Host**: `127.0.0.1` (hoặc `localhost`)
-- **Port**: `5433`
-- **Database**: `cityguard_v3_dev`
-- **Username**: `cityguard`
-- **Password**: Mật khẩu `CITYGUARD_DB_PASSWORD` trong file `Database/.env` của bạn
-- **JDBC URL cho Spring Boot Backend**: `jdbc:postgresql://127.0.0.1:5433/cityguard_v3_dev`
-
-Ví dụ chạy Backend (`SourceCode/backend`) kết nối với Docker PostgreSQL V3 trong PowerShell:
-```powershell
-cd ..\SourceCode\backend
-$env:SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:5433/cityguard_v3_dev"
-$env:SPRING_DATASOURCE_USERNAME="cityguard"
-$env:SPRING_DATASOURCE_PASSWORD="<Mật_khẩu_trong_file_.env>"
-.\mvnw.cmd spring-boot:run
-```
-
----
-
-## 2. Khởi tạo trên PostgreSQL 17 cài trực tiếp trên máy (Không dùng Docker)
-
-Nếu máy bạn cài PostgreSQL 17 native và muốn dựng một database test mới từ con số 0 bằng script tự động `bootstrap-v3.py`:
+### 2. Upgrading an Existing V3 Docker Container to V4 (In-place, Zero Data Loss)
+If your container is already running with an existing volume containing V3 data, Docker skips `/docker-entrypoint-initdb.d`. To upgrade safely without dropping your volume:
 
 ```powershell
-python Database/bootstrap-v3.py `
+# Step 1: Backup current database inside container
+docker-compose exec postgres pg_dump -U cityguard -d cityguard_v3_dev -Fc -f /var/lib/postgresql/data/backup_before_v4.dump
+
+# Step 2: Run read-only Preflight V4
+docker-compose exec postgres psql -U cityguard -d cityguard_v3_dev -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/06_preflight_v4.sql
+
+# Step 3: Apply V4 migration
+docker-compose exec postgres psql -U cityguard -d cityguard_v3_dev -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/07_V4__firebase_auth.sql
+
+# Step 4: Run Post-Upgrade V4 Verification
+docker-compose exec postgres psql -U cityguard -d cityguard_v3_dev -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/08_verify_v4.sql
+```
+
+### 3. Load Demo Seed Data (Optional `--profile demo`)
+```powershell
+docker-compose --profile demo run --rm seed-demo
+```
+
+## Automated Test Database Bootstrap (`bootstrap-v4.py`)
+
+To initialize a fresh test database on an existing PostgreSQL server from zero (`V1 -> V2 -> V3 -> V4 -> Demo Seed -> Verification V4`):
+
+```powershell
+python database/bootstrap-v4.py `
   --psql "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
   --host 127.0.0.1 `
-  --port 5432 `
-  --user postgres `
-  --dbname cityguard_v3_test `
+  --port <test_port> `
+  --user <db_user> `
+  --dbname cityguard_v4_test `
   --create-db
 ```
-*(Lưu ý: `bootstrap-v3.py` có chốt chặn an toàn không bao giờ cho phép chạy đè lên database chính `cityguard_db`).*
-
----
-
-## 3. Cấu trúc các file trong thư mục `Database/`
-
-- `migrations/V1__initial_schema.sql`: Migration V1 tạo 6 bảng nền tảng (`users`, `categories`, `reports`, `report_votes`, `comments`, `admin_logs`), constraints, 7 `ON DELETE RESTRICT` FKs, 12 indexes, hàm `set_updated_at()` và 4 triggers.
-- `migrations/V2__metrics_tokens_request_keys.sql`: Migration V2 bổ sung bảng `report_metrics`, `refresh_tokens`, ràng buộc unique toàn cục cho `client_request_id` và backfill bộ đếm vote.
-- `migrations/V3__report_public_id_ulid.sql`: Migration V3 bổ sung cột `reports.public_id VARCHAR(30) UNIQUE NOT NULL` (`CHECK (public_id ~ '^rpt_[0-7][0-9A-HJKMNP-TV-Z]{25}$')`), giữ nguyên `reports.id BIGINT` cho các khóa ngoại nội bộ.
-- `schema.sql`: Bản DDL V1 baseline chuẩn (đồng nhất với `V1__initial_schema.sql`).
-- `preflight-upgrade.sql` & `preflight-v3.sql`: Các script kiểm tra điều kiện an toàn (read-only) trước khi chạy V2 và V3.
-- `verify-v3.sql`: Script kiểm tra toàn diện cấu trúc V3 sau khi khởi tạo hoặc nâng cấp.
-- `seed.sql` & `seed-dbeaver.sql`: Dữ liệu mẫu phục vụ phát triển và kiểm thử (6 danh mục sự cố, các tài khoản demo `USER`/`MODERATOR`/`ADMIN`/`LOCKED`, báo cáo mẫu có `public_id` chuẩn ULID).
-- `queries.sql`: Tập hợp các câu truy vấn mẫu (`PREPARE`) chuẩn V3.
-- `docker-compose.yml` & `.env.example`: Cấu hình khởi chạy nhanh PostgreSQL 17 qua Docker trên cổng `5433`.
-- `bootstrap-v3.py`: Script Python tự động dựng database thử nghiệm mới (`Empty DB → V1 → V2 → V3 → Seed → Verify`).
-- `BACKEND_HANDOFF_V3.md`, `erd.md`, `design-decisions.md`: Tài liệu bàn giao kỹ thuật cho Backend, sơ đồ ERD và quyết định thiết kế.
-- `tests/`: Bộ kiểm thử tự động (`database-tests.sql`, `upgrade-tests.sql`, `upgrade-v3-tests.sql`, `run-v3-tests.py`, `run-docker-tests.py`, `v3-test-results.md`).
-
----
-
-## 4. Lưu ý quan trọng về `/docker-entrypoint-initdb.d` của Docker PostgreSQL
-
-- Các script gắn trong `/docker-entrypoint-initdb.d` **chỉ tự động chạy ở lần đầu tiên khi Docker volume (`cityguard_v3_pgdata`) hoàn toàn trống**.
-- Khi dừng hoặc khởi động lại container (`docker compose stop` / `docker compose start` / `docker compose restart`), dữ liệu trong volume được giữ nguyên và các script init sẽ được bỏ qua.
-- Nếu muốn xóa toàn bộ dữ liệu thử nghiệm trong Docker để dựng lại từ đầu, chạy `docker compose down -v` rồi `docker compose up -d` (chỉ thực hiện khi chắc chắn muốn tạo mới lại database dev/test trên cổng `5433`).
