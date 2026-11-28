@@ -72,7 +72,7 @@ object FakeReportRepository : ReportRepository {
         }
     }
 
-    override suspend fun addComment(reportId: String, content: String) {
+    override suspend fun addComment(reportId: String, content: String, requestId: String) {
         val comment = Comment(
             id = UUID.randomUUID().toString(),
             authorName = "Bạn",

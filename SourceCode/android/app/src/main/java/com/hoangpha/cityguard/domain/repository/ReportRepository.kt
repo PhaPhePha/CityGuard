@@ -27,7 +27,7 @@ interface ReportRepository {
 
     suspend fun createReport(newReport: NewReport): Report
     suspend fun vote(reportId: String, type: VoteType)
-    suspend fun addComment(reportId: String, content: String)
+    suspend fun addComment(reportId: String, content: String, requestId: String)
     suspend fun getCommunityReports(
         page: Int,
         size: Int,

@@ -132,7 +132,11 @@ class ApiReportRepository(
     }
 
     override suspend fun vote(reportId: String, type: VoteType) { requireReport(api.vote(reportId, VoteDto(type.name))) }
-    override suspend fun addComment(reportId: String, content: String) { requireReport(api.comment(reportId, CommentRequestDto(content))) }
+    override suspend fun addComment(reportId: String, content: String, requestId: String) {
+        val response = api.comment(reportId, CommentRequestDto(content, requestId))
+        if (!response.isSuccessful) error("Comment API error: ${response.code()}")
+        response.body()?.data ?: error("Comment API returned empty data")
+    }
     override suspend fun myReports(): List<Report> = requireReports(api.mine()).map(::toDomain)
     override suspend fun getCommunityReports(
         page: Int,

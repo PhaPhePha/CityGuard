@@ -40,7 +40,7 @@ data class ReportPageDto(
 
 data class CreateReportDto(val clientRequestId: String, val type: String, val description: String, val addressSnapshot: String, val latitude: Double, val longitude: Double, val imageUrl: String?)
 data class VoteDto(val type: String)
-data class CommentRequestDto(val content: String)
+data class CommentRequestDto(val content: String, val clientRequestId: String)
 
 interface ReportApi {
     @GET("api/v1/reports") suspend fun list(@Query("bbox") bbox: String? = null, @Query("type") type: String? = null,@Query("status") status: String? = null): Response<ApiResponse<List<ReportDto>>>
@@ -56,7 +56,7 @@ interface ReportApi {
     @GET("api/v1/reports/mine") suspend fun mine(): Response<ApiResponse<List<ReportDto>>>
     @POST("api/v1/reports") suspend fun create(@Body request: CreateReportDto): Response<ApiResponse<ReportDto>>
     @POST("api/v1/reports/{id}/vote") suspend fun vote(@Path("id") id: String, @Body request: VoteDto): Response<ApiResponse<ReportDto>>
-    @POST("api/v1/reports/{id}/comments") suspend fun comment(@Path("id") id: String, @Body request: CommentRequestDto): Response<ApiResponse<ReportDto>>
+    @POST("api/v1/reports/{id}/comments") suspend fun comment(@Path("id") id: String, @Body request: CommentRequestDto): Response<ApiResponse<CommentDto>>
     @GET("api/v1/reports/{id}/comments") suspend fun comments(@Path("id") id: String, @Query("page") page: Int = 0, @Query("size") size: Int = 20): Response<ApiResponse<CommentPageDto>>
     @Multipart
     @POST("api/v1/uploads/images")
