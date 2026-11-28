@@ -12,9 +12,11 @@ secrets {
     propertiesFileName = "secrets.properties"
     defaultPropertiesFileName = "local.defaults.properties"
 }
-// TV2 - Thịnh: tách endpoint theo build type, giữ plugin/version/dependency gốc của nhóm.
-val debugApiUrl = providers.gradleProperty("CITYGUARD_DEBUG_BASE_URL").orElse("http://10.0.2.2:8080/")
-val releaseApiUrl = providers.gradleProperty("CITYGUARD_RELEASE_BASE_URL").orElse("")
+// Mặc định trỏ tới backend cloud để APK cài trên điện thoại thật dùng được ngay.
+// Có thể ghi đè khi test local bằng -PCITYGUARD_DEBUG_BASE_URL=http://10.0.2.2:8080/.
+val cloudApiUrl = "https://cityguard-production.up.railway.app/"
+val debugApiUrl = providers.gradleProperty("CITYGUARD_DEBUG_BASE_URL").orElse(cloudApiUrl)
+val releaseApiUrl = providers.gradleProperty("CITYGUARD_RELEASE_BASE_URL").orElse(cloudApiUrl)
 // [TV2-12] Debug được dùng emulator/local. Release không fallback sang debug endpoint.
 // TV5 cung cấp HTTPS thật qua CITYGUARD_RELEASE_BASE_URL; signing/SHA/Key Hash release cần bổ sung trước bàn giao release.
 fun quotedUrl(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
