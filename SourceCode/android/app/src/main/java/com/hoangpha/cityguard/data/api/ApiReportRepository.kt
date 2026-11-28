@@ -17,6 +17,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import com.hoangpha.cityguard.domain.model.CommunityReportPage
+import java.util.concurrent.ConcurrentHashMap
+
 class ApiReportRepository(
     private val api: ReportApi,
     private val context: Context
@@ -27,6 +29,10 @@ class ApiReportRepository(
         "ROAD_DAMAGE",
         "ROAD_BLOCK"
     )
+
+    // Nhớ URL ảnh đã upload thành công, để gửi lại report không upload ảnh lần nữa
+    private val uploadedImageUrls = ConcurrentHashMap<String, String>()
+
     override suspend fun getReportsForMap(
         bbox: String?,
         type: String?,
@@ -114,8 +120,14 @@ class ApiReportRepository(
     }
 
     override suspend fun createReport(newReport: NewReport): Report {
-        val uploadedImageUrl = newReport.imageUri?.let { uri ->
-            uploadImage(uri)
+        val imageUri = newReport.imageUri
+        val cacheKey = "${newReport.requestId}|$imageUri"
+
+        val uploadedImageUrl = if (imageUri != null) {
+            uploadedImageUrls[cacheKey]
+                ?: uploadImage(imageUri).also { uploadedImageUrls[cacheKey] = it }
+        } else {
+            null
         }
 
         val request = CreateReportDto(
@@ -127,11 +139,14 @@ class ApiReportRepository(
             newReport.longitude,
             uploadedImageUrl
         )
-
-        return toDomain(requireReport(api.create(request)))
+        
+        val report = toDomain(requireReport(api.create(request)))
+        uploadedImageUrls.remove(cacheKey)       // thành công rồi thì không cần nhớ nữa
+        return report
     }
 
     override suspend fun vote(reportId: String, type: VoteType) { requireReport(api.vote(reportId, VoteDto(type.name))) }
+
     override suspend fun addComment(reportId: String, content: String, requestId: String) {
         val response = api.comment(reportId, CommentRequestDto(content, requestId))
         if (!response.isSuccessful) error("Comment API error: ${response.code()}")
