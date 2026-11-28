@@ -2,6 +2,7 @@ package com.hoangpha.cityguard.presentation.report
 
 import android.net.Uri
 import android.Manifest
+import android.location.Geocoder
 import android.content.pm.PackageManager
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -60,6 +61,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Locale
 import androidx.compose.runtime.setValue
 
 import androidx.compose.ui.Alignment
@@ -124,12 +128,23 @@ fun CreateReportRoute(
     LaunchedEffect(locationViewModel.uiState) {
         val finished = locationViewModel.uiState as? LocationUiState.Finished ?: return@LaunchedEffect
         when (val result = finished.result) {
-            is LocationResult.Success -> viewModel.onLocationResolved(
-                result.point.latitude,
-                result.point.longitude,
-                result.approximate,
-                result.fromCache
-            )
+            is LocationResult.Success -> {
+                val address = withContext(Dispatchers.IO) {
+                    runCatching {
+                        Geocoder(context, Locale.getDefault())
+                            .getFromLocation(result.point.latitude, result.point.longitude, 1)
+                            ?.firstOrNull()
+                            ?.getAddressLine(0)
+                    }.getOrNull()
+                }
+                viewModel.onLocationResolved(
+                    result.point.latitude,
+                    result.point.longitude,
+                    result.approximate,
+                    result.fromCache,
+                    address
+                )
+            }
             LocationResult.PermissionDenied -> viewModel.onLocationError("Cần cấp quyền vị trí để gắn tọa độ cho báo cáo")
             LocationResult.ServicesDisabled -> viewModel.onLocationError("Hãy bật dịch vụ vị trí rồi thử lại")
             LocationResult.Stale -> viewModel.onLocationError("Vị trí quá cũ, hãy thử lấy lại vị trí")

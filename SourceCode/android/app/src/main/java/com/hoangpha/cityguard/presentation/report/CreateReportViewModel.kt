@@ -39,12 +39,20 @@ class CreateReportViewModel(
         _uiState.update { it.copy(address = text, errorMessage = null) }
     }
 
-    fun onLocationResolved(latitude: Double, longitude: Double, approximate: Boolean, fromCache: Boolean) {
+    fun onLocationResolved(
+        latitude: Double,
+        longitude: Double,
+        approximate: Boolean,
+        fromCache: Boolean,
+        resolvedAddress: String? = null
+    ) {
         _uiState.update {
             it.copy(
                 latitude = latitude,
                 longitude = longitude,
-                address = if (it.address.isBlank()) "Vị trí GPS hiện tại" else it.address,
+                address = if (it.address.isBlank()) {
+                    resolvedAddress?.takeIf(String::isNotBlank) ?: "Vị trí GPS hiện tại"
+                } else it.address,
                 locationApproximate = approximate,
                 locationFromCache = fromCache,
                 errorMessage = null
