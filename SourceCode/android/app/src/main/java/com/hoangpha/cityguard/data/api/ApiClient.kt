@@ -1,6 +1,6 @@
 package com.hoangpha.cityguard.data.api
 
-// TV2 - Trần Hữu Thịnh: Gắn JWT tập trung, bỏ header X-User-Id cũ; chỉ response 401 của API bảo vệ mới làm hết phiên.
+//Gắn JWT tập trung, bỏ header X-User-Id cũ; chỉ response 401 của API bảo vệ mới làm hết phiên.
 
 import com.hoangpha.cityguard.BuildConfig
 import com.hoangpha.cityguard.data.local.SessionStore
@@ -12,13 +12,13 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object ApiClient {
-    // [TV2-05] API bảo vệ dùng Bearer JWT CityGuard, không gửi X-User-Id/Firebase ID Token
+    //API bảo vệ dùng Bearer JWT CityGuard, không gửi X-User-Id/Firebase ID Token
     private fun retrofit(sessionManager: SessionStore, retryConnection: Boolean = true): Retrofit {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
         val client = OkHttpClient.Builder()
-            // TV2: Auth POST không tự gửi lại khi kết nối lỗi; UI để user quyết định sau timeout.
+            // Auth POST không tự gửi lại khi kết nối lỗi; UI để user quyết định sau timeout.
             .retryOnConnectionFailure(retryConnection)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)

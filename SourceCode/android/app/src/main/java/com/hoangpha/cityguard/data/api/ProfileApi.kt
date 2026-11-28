@@ -12,7 +12,6 @@ data class PageDto<T>(
     val totalElements: Long, val totalPages: Int, val hasNext: Boolean
 )
 interface ProfileApi {
-    // [TV2-08] /me xác định user từ JWT phía server, không nhận userId do Android tự khai.
     // Summary phẳng: username/email/displayName/avatarUrl/role/reportCount/confirmedReports.
     @GET("api/v1/me/summary")
     suspend fun summary(): Response<ApiResponse<ProfileSummaryDto>>
