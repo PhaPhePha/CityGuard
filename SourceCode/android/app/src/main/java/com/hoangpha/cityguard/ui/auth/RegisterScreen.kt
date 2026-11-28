@@ -43,6 +43,9 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavController
 import com.hoangpha.cityguard.R
 import com.hoangpha.cityguard.ui.theme.*
+import androidx.compose.ui.tooling.preview.Preview
+import com.hoangpha.cityguard.ui.preview.PreviewAuthController
+import com.hoangpha.cityguard.ui.preview.Tv2PreviewFrame
 
 @Composable
 fun RegisterScreen(
@@ -274,4 +277,16 @@ fun RegisterScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp).zIndex(2f)
         )
     }
+}
+
+@Preview(name = "Register - Bình thường", group = "TV2 Register", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun RegisterIdlePreview() {
+    Tv2PreviewFrame { nav -> RegisterScreen(nav, remember { PreviewAuthController() }) }
+}
+
+@Preview(name = "Register - Đang đăng ký", group = "TV2 Register", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun RegisterLoadingPreview() {
+    Tv2PreviewFrame { nav -> RegisterScreen(nav, remember { PreviewAuthController(AuthState.Loading) }) }
 }

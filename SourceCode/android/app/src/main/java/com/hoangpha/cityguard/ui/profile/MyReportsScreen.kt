@@ -30,10 +30,11 @@ import androidx.navigation.NavController
 import com.hoangpha.cityguard.data.api.ReportDto
 import com.hoangpha.cityguard.ui.theme.*
 import java.time.Instant
+import androidx.compose.ui.tooling.preview.Preview
+import com.hoangpha.cityguard.ui.preview.*
 
 private val ReportsCanvas = Color(0xFFFFF8D7)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel = viewModel()) {
     // Card lấy từ API, empty/error/retry riêng; mở report_detail bằng public report.id
@@ -43,6 +44,18 @@ fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel 
         val current = viewModel.state.value
         if (!current.loading && !current.loadingMore) viewModel.refresh()
     }
+    MyReportsContent(navController, state, viewModel::selectStatus, viewModel::retry, viewModel::loadMore)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun MyReportsContent(
+    navController: NavController,
+    state: MyReportsUiState,
+    onStatusSelected: (String?) -> Unit,
+    onRetry: () -> Unit,
+    onLoadMore: () -> Unit
+) {
     val tabs = listOf("Tất cả", "Đang hoạt động", "Đã hết hạn")
     val statuses = listOf(null, "ACTIVE", "EXPIRED")
 
@@ -69,7 +82,7 @@ fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel 
                 tabs.forEachIndexed { index, title ->
                     FilterChip(
                         selected = state.status == statuses[index],
-                        onClick = { viewModel.selectStatus(statuses[index]) },
+                        onClick = { onStatusSelected(statuses[index]) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(24.dp),
                         label = {
@@ -117,14 +130,14 @@ fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel 
                         Surface(shape = RoundedCornerShape(12.dp), color = CityGuardWhite, modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                                TextButton(onClick = viewModel::retry) { Text("Thử lại", color = CityGuardBlack) }
+                                TextButton(onClick = onRetry) { Text("Thử lại", color = CityGuardBlack) }
                             }
                         }
                     } }
                     if (state.loadingMore) item { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = CityGuardBlack) } }
                     else if (state.hasNext && state.error == null) item {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            TextButton(onClick = viewModel::loadMore) { Text("Xem thêm báo cáo", color = CityGuardBlack) }
+                            TextButton(onClick = onLoadMore) { Text("Xem thêm báo cáo", color = CityGuardBlack) }
                         }
                     }
                 }
@@ -206,3 +219,27 @@ private fun String.reportTimeLabel(): String = runCatching {
     val minutes = ((System.currentTimeMillis() - Instant.parse(this).toEpochMilli()) / 60_000).coerceAtLeast(0)
     when { minutes < 1 -> "Vừa xong"; minutes < 60 -> "$minutes phút trước"; minutes < 1_440 -> "${minutes / 60} giờ trước"; else -> "${minutes / 1_440} ngày trước" }
 }.getOrDefault(this)
+
+@Preview(name = "My Reports - Có báo cáo", group = "TV2 My Reports", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun MyReportsDataPreview() {
+    Tv2PreviewFrame { nav -> MyReportsContent(nav, MyReportsUiState(loading = false, reports = previewReports()), {}, {}, {}) }
+}
+
+@Preview(name = "My Reports - Trống", group = "TV2 My Reports", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun MyReportsEmptyPreview() {
+    Tv2PreviewFrame { nav -> MyReportsContent(nav, MyReportsUiState(loading = false), {}, {}, {}) }
+}
+
+@Preview(name = "My Reports - Đang tải", group = "TV2 My Reports", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun MyReportsLoadingPreview() {
+    Tv2PreviewFrame { nav -> MyReportsContent(nav, MyReportsUiState(), {}, {}, {}) }
+}
+
+@Preview(name = "My Reports - Lỗi kết nối", group = "TV2 My Reports", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun MyReportsErrorPreview() {
+    Tv2PreviewFrame { nav -> MyReportsContent(nav, MyReportsUiState(loading = false, error = "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại."), {}, {}, {}) }
+}

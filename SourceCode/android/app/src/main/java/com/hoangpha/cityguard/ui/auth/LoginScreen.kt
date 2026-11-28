@@ -55,6 +55,9 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavController
 import com.hoangpha.cityguard.R
 import com.hoangpha.cityguard.ui.theme.*
+import androidx.compose.ui.tooling.preview.Preview
+import com.hoangpha.cityguard.ui.preview.PreviewAuthController
+import com.hoangpha.cityguard.ui.preview.Tv2PreviewFrame
 
 @Composable
 fun LoginScreen(
@@ -71,6 +74,7 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val isLoading = authState is AuthState.Loading
     val keyboard = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
     // Back hủy request đang chờ, tránh một form đã đóng vẫn nhận kết quả và tự chuyển màn.
     fun goBack() {
         authViewModel.cancelPending()
@@ -173,7 +177,7 @@ fun LoginScreen(
                 painter = painterResource(id = R.drawable.logo_cityguard),
                 contentDescription = "Logo",
                 modifier = Modifier
-                    .size(if (compact) 130.dp else 120.dp)
+                    .size(if (compact) 130.dp else 112.dp)
             )
 
             // 2. CHỮ
@@ -279,7 +283,8 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
                 OutlinedButton(
-                    onClick = { startSocialLogin(FirebaseProvider.GOOGLE) }, enabled = !isLoading,
+                    onClick = { scope.launch { snackbarHostState.showSnackbar("Tính năng đăng nhập bằng Google đang phát triển. Vui lòng quay lại sau!") } }, 
+                    enabled = true,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Google" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -290,7 +295,8 @@ fun LoginScreen(
                 }
                 // nút Facebook
                 OutlinedButton(
-                    onClick = { startSocialLogin(FirebaseProvider.FACEBOOK) }, enabled = !isLoading,
+                    onClick = { scope.launch { snackbarHostState.showSnackbar("Tính năng đăng nhập bằng Facebook đang phát triển. Vui lòng quay lại sau!") } }, 
+                    enabled = true,
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Đăng nhập bằng Facebook" },
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(1.dp, Color(0xFFDADCE0)),
@@ -321,4 +327,17 @@ fun LoginScreen(
         )
     }
 
+}
+
+// Chỉ dựng giao diện trong Android Studio, không đăng nhập/gọi backend.
+@Preview(name = "Login - Bình thường", group = "TV2 Login", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun LoginIdlePreview() {
+    Tv2PreviewFrame { nav -> LoginScreen(nav, remember { PreviewAuthController() }, socialLoginLauncher = {}) }
+}
+
+@Preview(name = "Login - Đang đăng nhập", group = "TV2 Login", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun LoginLoadingPreview() {
+    Tv2PreviewFrame { nav -> LoginScreen(nav, remember { PreviewAuthController(AuthState.Loading) }, socialLoginLauncher = {}) }
 }

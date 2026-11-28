@@ -1,6 +1,6 @@
 package com.hoangpha.cityguard.data.api
 
-// TV2 - Trần Hữu Thịnh: Đọc lỗi chuẩn backend và phân biệt HTTP 400/401/403/409 với lỗi mạng; dùng chung cho các màn TV2.
+//Đọc lỗi chuẩn backend và phân biệt HTTP 400/401/403/409 với lỗi mạng; dùng chung cho các màn TV2.
 
 import com.google.gson.Gson
 import java.io.IOException

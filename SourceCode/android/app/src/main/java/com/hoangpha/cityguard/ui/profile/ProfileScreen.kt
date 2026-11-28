@@ -37,6 +37,8 @@ import com.hoangpha.cityguard.ui.auth.AuthController
 import com.hoangpha.cityguard.ui.theme.*
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import androidx.compose.ui.tooling.preview.Preview
+import com.hoangpha.cityguard.ui.preview.*
 
 private val ProfileCanvas = Color(0xFFFFF8D7)
 
@@ -48,14 +50,25 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (!viewModel.state.value.loading) viewModel.load()
+    }
+    ProfileContent(navController, authViewModel, onLogout, state, viewModel::load)
+}
+
+// Cùng một phần hiển thị cho app thật và Preview; không thay bố cục/màu sắc.
+@Composable
+internal fun ProfileContent(
+    navController: NavController,
+    authViewModel: AuthController,
+    onLogout: () -> Unit,
+    state: ProfileUiState,
+    onRetry: () -> Unit
+) {
     val profile = state.profile
     val context = LocalContext.current
     var menuInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
     var signingOut by remember { mutableStateOf(false) }
-
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (!viewModel.state.value.loading) viewModel.load()
-    }
 
     Column(Modifier.fillMaxSize().background(CityGuardYellow)) {
         Box(Modifier.fillMaxWidth()) {
@@ -121,7 +134,7 @@ fun ProfileScreen(
                 Surface(color = CityGuardWhite, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                     Column(Modifier.padding(12.dp)) {
                         Text(message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                        TextButton(onClick = viewModel::load) { Text("Thử lại", color = CityGuardBlack) }
+                        TextButton(onClick = onRetry) { Text("Thử lại", color = CityGuardBlack) }
                     }
                 }
             }
@@ -213,5 +226,27 @@ fun ProfileMenuItem(title: String, subtitle: String, icon: ImageVector, textColo
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
         }
+    }
+}
+
+@Preview(name = "Profile - Có dữ liệu", group = "TV2 Profile", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun ProfileDataPreview() {
+    Tv2PreviewFrame { nav ->
+        ProfileContent(nav, remember { PreviewAuthController() }, {}, ProfileUiState(loading = false, profile = previewProfile()), {})
+    }
+}
+
+@Preview(name = "Profile - Đang tải", group = "TV2 Profile", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun ProfileLoadingPreview() {
+    Tv2PreviewFrame { nav -> ProfileContent(nav, remember { PreviewAuthController() }, {}, ProfileUiState(), {}) }
+}
+
+@Preview(name = "Profile - Lỗi kết nối", group = "TV2 Profile", widthDp = 393, heightDp = 852, showBackground = true, showSystemUi = true)
+@Composable
+private fun ProfileErrorPreview() {
+    Tv2PreviewFrame { nav ->
+        ProfileContent(nav, remember { PreviewAuthController() }, {}, ProfileUiState(loading = false, error = "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại."), {})
     }
 }
