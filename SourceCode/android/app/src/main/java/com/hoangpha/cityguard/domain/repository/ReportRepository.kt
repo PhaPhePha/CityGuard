@@ -5,7 +5,7 @@ import com.hoangpha.cityguard.domain.model.Report
 import com.hoangpha.cityguard.domain.model.VoteType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-
+import com.hoangpha.cityguard.domain.model.CommunityReportPage
 // Dữ liệu người dùng nhập khi tạo report (chưa có id, thời gian, số vote)
 data class NewReport(
     val requestId: String,          // mã chống gửi trùng: tạo một lần khi mở form, thử lại thì gửi lại đúng mã này
@@ -28,5 +28,10 @@ interface ReportRepository {
     suspend fun createReport(newReport: NewReport): Report
     suspend fun vote(reportId: String, type: VoteType)
     suspend fun addComment(reportId: String, content: String)
+    suspend fun getCommunityReports(
+        page: Int,
+        size: Int,
+        recent: Boolean
+    ): CommunityReportPage
     suspend fun myReports(): List<Report> = reports.first()
 }

@@ -92,8 +92,7 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = { navController.navigate("register") },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    onClick = { navController.navigate("register") }, modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CityGuardWhite),
                     shape = RoundedCornerShape(12.dp)
                 ) {

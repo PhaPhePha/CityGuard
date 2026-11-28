@@ -43,8 +43,10 @@ public class CreateReportRequest {
     @Size(max = 500, message = "Địa chỉ snapshot không được vượt quá 500 ký tự")
     private String addressSnapshot;
 
-    @Pattern(regexp = "^https://\\S+$", message = "Hình ảnh phải là URL an toàn bắt đầu bằng https://")
+    @Pattern(
+            regexp = "^(https://\\S+|http://10\\.0\\.2\\.2:8080/uploads/\\S+)$",
+            message = "URL hình ảnh không hợp lệ"
+    )
     private String imageUrl;
-
     private UUID clientRequestId;
 }

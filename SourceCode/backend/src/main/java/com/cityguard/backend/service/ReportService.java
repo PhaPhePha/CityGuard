@@ -5,6 +5,8 @@ import com.cityguard.backend.dto.report.ReportResponse;
 import com.cityguard.backend.dto.report.VoteRequest;
 import com.cityguard.backend.enums.ReportStatus;
 import com.cityguard.backend.enums.ReportType;
+import com.cityguard.backend.dto.common.PageResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -13,6 +15,7 @@ import java.util.List;
  */
 public interface ReportService {
     List<ReportResponse> getReports(String bbox, ReportType type, ReportStatus status);
+    PageResponse<ReportResponse> getCommunityReports(boolean recent, Pageable pageable);
     ReportResponse getReportById(String id);
     ReportResponse create(CreateReportRequest request);
     ReportResponse vote(String id, VoteRequest request);

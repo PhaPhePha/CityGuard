@@ -43,7 +43,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application), A
                 )
                 val body = response.body()?.data
                 if (response.isSuccessful && body != null) {
-                    sessionManager.saveSession(body.accessToken,body.userInfo.id.toString())
+                    sessionManager.saveSession(
+                        token = body.accessToken,
+                        userId = body.userInfo.id.toString(),
+                        refreshToken = body.refreshToken
+                    )
                     _authState.value = AuthState.Success
                 } else {
                     _authState.value = AuthState.Error("Sai tên đăng nhập hoặc mật khẩu")
@@ -85,7 +89,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application), A
                 )
                 val body = response.body()?.data
                 if (response.isSuccessful && body != null) {
-                    sessionManager.saveSession(body.accessToken,body.userInfo.id.toString())
+                    sessionManager.saveSession(
+                        token = body.accessToken,
+                        userId = body.userInfo.id.toString(),
+                        refreshToken = body.refreshToken
+                    )
                     _authState.value = AuthState.Success
                 } else {
                     _authState.value = AuthState.Error("Email hoặc tên đăng nhập đã tồn tại")

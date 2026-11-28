@@ -29,6 +29,11 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.hoangpha.cityguard.presentation.report.ReportDetailRoute
 import com.hoangpha.cityguard.presentation.community.CommunityRoute
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hoangpha.cityguard.presentation.community.CommunityViewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.LaunchedEffect
+import android.widget.Toast
 sealed class BottomNavItem(var title: String, var icon: androidx.compose.ui.graphics.vector.ImageVector, var route: String) {
     object Map : BottomNavItem("Bản đồ", Icons.Default.Map, "map")
     object CreateReport : BottomNavItem("Tạo báo cáo", Icons.Default.AddCircle, "create_report")
@@ -39,7 +44,22 @@ sealed class BottomNavItem(var title: String, var icon: androidx.compose.ui.grap
 @Composable
 fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
     val navController = rememberNavController()
-    val items = listOf(BottomNavItem.Map, BottomNavItem.CreateReport, BottomNavItem.Community, BottomNavItem.Profile)
+    val context = LocalContext.current
+    val communityViewModel: CommunityViewModel = viewModel()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == "community") {
+            communityViewModel.load()
+        }
+    }
+    val items = listOf(
+        BottomNavItem.Map,
+        BottomNavItem.CreateReport,
+        BottomNavItem.Community,
+        BottomNavItem.Profile
+    )
 
     // Sử dụng Box thay vì Scaffold để không hiện nút 3 gạch
     Box(modifier = Modifier.fillMaxSize()) {
@@ -68,48 +88,59 @@ fun MainScreen(authViewModel: AuthController, onLogout: () -> Unit) {
             }
             composable(
                 route = "report_detail/{reportId}",
-                arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+                arguments = listOf(
+                    navArgument("reportId") {
+                        type = NavType.StringType
+                    }
+                )
             ) {
-                ReportDetailRoute(onBack = { navController.popBackStack() })
+                ReportDetailRoute(
+                    onBack = {
+                        navController.popBackStack()
+                    }
+                )
             }
+
             composable("community") {
                 CommunityRoute(
                     onReportClick = { reportId ->
                         navController.navigate("report_detail/$reportId")
-                    }
+                    },
+                    viewModel = communityViewModel
                 )
             }
-            composable("profile") { ProfileScreen(navController, authViewModel, onLogout) }
-            composable("my_reports") { MyReportsScreen(navController) }
+
+// Đóng NavHost tại đây
         }
 
-        // Thanh điều hướng dưới cùng
+// Thanh điều hướng dưới cùng
         NavigationBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            containerColor = CityGuardWhite
-        ) {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-            val showBottomBar = currentRoute in items.map { it.route }
-            if (showBottomBar) items.forEach { item ->
-                NavigationBarItem(
-                    icon = { Icon(item.icon, contentDescription = item.title) },
-                    label = { Text(item.title) },
-                    selected = currentRoute == item.route,
-                    onClick = {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = CityGuardBlack,
-                        selectedTextColor = CityGuardBlack,
-                        indicatorColor = CityGuardYellow
+                modifier = Modifier.align(Alignment.BottomCenter),
+                containerColor = CityGuardWhite
+            ) {
+                val showBottomBar = currentRoute in items.map { it.route }
+                if (showBottomBar) items.forEach { item ->
+                    NavigationBarItem(
+                        icon = { Icon(item.icon, contentDescription = item.title) },
+                        label = { Text(item.title) },
+                        selected = currentRoute == item.route,
+                        onClick = {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = CityGuardBlack,
+                            selectedTextColor = CityGuardBlack,
+                            indicatorColor = CityGuardYellow
+                        )
                     )
-                )
+                }
             }
         }
     }
-}
+

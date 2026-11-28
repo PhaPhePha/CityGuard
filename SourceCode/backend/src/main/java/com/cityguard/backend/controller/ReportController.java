@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -139,4 +141,31 @@ public class ReportController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Thêm bình luận thành công", response));
     }
+
+    @GetMapping("/community")
+    @Operation(
+            summary = "Lấy danh sách báo cáo Community có phân trang",
+            description = "Lấy báo cáo mới nhất, hỗ trợ lọc báo cáo trong 24 giờ gần nhất"
+    )
+    public ResponseEntity<ApiResponse<PageResponse<ReportResponse>>> getCommunityReports(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean recent
+    ) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page phải lớn hơn hoặc bằng 0");
+        }
+
+        if (size < 1 || size > 50) {
+            throw new IllegalArgumentException("Size phải nằm trong khoảng 1 đến 50");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        PageResponse<ReportResponse> response =
+                reportService.getCommunityReports(recent, pageable);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
 }

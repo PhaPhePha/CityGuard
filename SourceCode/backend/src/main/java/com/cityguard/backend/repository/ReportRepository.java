@@ -40,6 +40,31 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
             @Param("maxLng") Double maxLng
     );
 
+    @Query(
+            value = """
+        SELECT r FROM Report r
+        LEFT JOIN FETCH r.category
+        LEFT JOIN FETCH r.reportMetrics
+        WHERE r.status IN :statuses
+          AND r.expiresAt > :now
+          AND (:recent = false OR r.createdAt >= :recentSince)
+        ORDER BY r.createdAt DESC, r.id DESC
+    """,
+            countQuery = """
+        SELECT COUNT(r) FROM Report r
+        WHERE r.status IN :statuses
+          AND r.expiresAt > :now
+          AND (:recent = false OR r.createdAt >= :recentSince)
+    """
+    )
+    Page<Report> findCommunityReports(
+            @Param("statuses") List<ReportStatus> statuses,
+            @Param("now") OffsetDateTime now,
+            @Param("recent") boolean recent,
+            @Param("recentSince") OffsetDateTime recentSince,
+            Pageable pageable
+    );
+
     @Query("SELECT r FROM Report r LEFT JOIN FETCH r.category c LEFT JOIN FETCH r.reportMetrics m WHERE r.publicId = :publicId")
     Optional<Report> findByPublicIdWithDetails(@Param("publicId") String publicId);
 

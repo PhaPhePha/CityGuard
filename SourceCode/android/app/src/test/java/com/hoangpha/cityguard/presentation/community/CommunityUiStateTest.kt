@@ -41,4 +41,20 @@ class CommunityUiStateTest {
         val state = CommunityUiState(isLoading = false, reports = reports, selectedTab = CommunityTab.RECENT)
         assertEquals(listOf("moi", "giua"), state.visibleReports(now).map { it.id })
     }
+    @Test
+    fun recentTabIncludes24HourBoundaryAndExcludesFutureReports() {
+        val boundaryReport = report("boundary", 24 * hour)
+        val futureReport = report("future", -hour)
+
+        val state = CommunityUiState(
+            isLoading = false,
+            reports = listOf(boundaryReport, futureReport),
+            selectedTab = CommunityTab.RECENT
+        )
+
+        assertEquals(
+            listOf("boundary"),
+            state.visibleReports(now).map { it.id }
+        )
+    }
 }

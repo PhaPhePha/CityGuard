@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import java.util.UUID
-
+import com.hoangpha.cityguard.domain.model.CommunityReportPage
 // DỮ LIỆU GIẢ: chỉ để làm giao diện khi chưa có API. Tắt app là mất.
 object FakeReportRepository : ReportRepository {
 
@@ -85,7 +85,41 @@ object FakeReportRepository : ReportRepository {
             }
         }
     }
+    override suspend fun getCommunityReports(
+        page: Int,
+        size: Int,
+        recent: Boolean
+    ): CommunityReportPage {
+        val now = System.currentTimeMillis()
 
+        val filteredReports = state.value
+            .filter {
+                !recent ||
+                        (now - it.createdAtMillis) in
+                        0..CommunityReportPage.RECENT_WINDOW_MILLIS
+            }
+            .sortedByDescending { it.createdAtMillis }
+
+        val items = filteredReports
+            .drop(page * size)
+            .take(size)
+
+        val totalElements = filteredReports.size.toLong()
+        val totalPages = if (totalElements == 0L) {
+            0
+        } else {
+            ((totalElements + size - 1) / size).toInt()
+        }
+
+        return CommunityReportPage(
+            items = items,
+            page = page,
+            size = size,
+            totalElements = totalElements,
+            totalPages = totalPages,
+            hasNext = page + 1 < totalPages
+        )
+    }
     private fun sampleReports(): List<Report> {
         val now = System.currentTimeMillis()
         val minute = 60_000L

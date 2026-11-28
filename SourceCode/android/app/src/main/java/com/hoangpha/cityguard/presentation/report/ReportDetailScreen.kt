@@ -71,7 +71,7 @@ import com.hoangpha.cityguard.ui.theme.CityGuardDarkYellow
 import com.hoangpha.cityguard.ui.theme.CityGuardGreen
 import com.hoangpha.cityguard.ui.theme.CityGuardRed
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
-
+import androidx.compose.ui.platform.LocalContext
 // "Route": nối ViewModel với màn hình
 @Composable
 fun ReportDetailRoute(
@@ -98,6 +98,7 @@ fun ReportDetailScreen(
     onSendComment: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val report = state.report
 
     when {
@@ -143,7 +144,15 @@ fun ReportDetailScreen(
                             )
                         }
                         IconButton(
-                            onClick = onBack,
+                            onClick = {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "ARROW CLICKED",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+
+                                onBack()
+                            },
                             modifier = Modifier
                                 .statusBarsPadding()
                                 .padding(12.dp)
@@ -164,30 +173,68 @@ fun ReportDetailScreen(
                             .background(Color.White, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                             .padding(16.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(id = report.category.markerIconRes()),
-                                contentDescription = report.category.displayName,
-                                modifier = Modifier.size(44.dp)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(report.category.displayName, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                                Text("📍 ${report.address}", fontSize = 12.sp)
-                                Text("🕒 ${report.createdAtLabel}", fontSize = 12.sp, color = Color.Gray)
-                            }
-                            val (badgeBackground, badgeText) = detailTrustColors(report.trustLabel)
-                            Text(
-                                "Độ tin cậy: ${report.trustLabel}",
-                                modifier = Modifier
-                                    .background(badgeBackground, RoundedCornerShape(5.dp))
-                                    .padding(horizontal = 6.dp, vertical = 3.dp),
-                                color = badgeText,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(id = report.category.markerIconRes()),
+                                    contentDescription = report.category.displayName,
+                                    modifier = Modifier.size(44.dp)
+                                )
 
+                                Spacer(Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        report.category.displayName,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 20.sp
+                                    )
+                                    Text("📍 ${report.address}", fontSize = 12.sp)
+                                    Text(
+                                        "🕒 ${report.createdAtLabel}",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val (statusBackground, statusTextColor) =
+                                    detailStatusColors(report.status)
+
+                                Text(
+                                    text = "Trạng thái: ${detailStatusLabel(report.status)}",
+                                    modifier = Modifier
+                                        .background(statusBackground, RoundedCornerShape(5.dp))
+                                        .padding(horizontal = 7.dp, vertical = 4.dp),
+                                    color = statusTextColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+
+                                val (badgeBackground, badgeText) =
+                                    detailTrustColors(report.trustLabel)
+
+                                Text(
+                                    text = "Độ tin cậy: ${report.trustLabel}",
+                                    modifier = Modifier
+                                        .background(badgeBackground, RoundedCornerShape(5.dp))
+                                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    color = badgeText,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                         Text(report.description, fontSize = 14.sp)
                         Spacer(Modifier.height(12.dp))
@@ -363,6 +410,21 @@ private fun Avatar(name: String) {
 private fun detailTrustColors(label: String): Pair<Color, Color> = when (label) {
     "Cao" -> Pair(Color(0xFFD6F3D8), CityGuardGreen)
     "Thấp" -> Pair(Color(0xFFFFD9D9), CityGuardRed)
+    else -> Pair(Color(0xFFFFF3C4), CityGuardDarkYellow)
+}
+private fun detailStatusLabel(status: String): String = when (status) {
+    "PENDING_VERIFY" -> "Đang chờ xác minh"
+    "ACTIVE" -> "Đang hoạt động"
+    "EXPIRED" -> "Đã hết hạn"
+    "RESOLVED" -> "Đã xử lý"
+    "HIDDEN" -> "Đã ẩn"
+    else -> "Không xác định"
+}
+
+private fun detailStatusColors(status: String): Pair<Color, Color> = when (status) {
+    "ACTIVE" -> Pair(Color(0xFFD6F3D8), CityGuardGreen)
+    "RESOLVED" -> Pair(Color(0xFFD6F3D8), CityGuardGreen)
+    "EXPIRED", "HIDDEN" -> Pair(Color(0xFFFFD9D9), CityGuardRed)
     else -> Pair(Color(0xFFFFF3C4), CityGuardDarkYellow)
 }
 // ----- Xem thử trong Android Studio -----

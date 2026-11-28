@@ -39,3 +39,5 @@ google-services.json
 # Local build caches used when the default user cache is not writable
 **/.gradle-home-review/
 **/.maven-home-review/
+
+SourceCode/backend/uploads/

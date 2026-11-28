@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
         // Khởi tạo SessionManager
         val sessionManager = SessionManager(applicationContext)
-        RepositoryProvider.initialize(sessionManager)
+        RepositoryProvider.initialize(sessionManager, applicationContext)
 
         setContent {
             CityGuardAppTheme {

@@ -38,7 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
+import com.cityguard.backend.dto.common.PageResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 /**
  * Triển khai ReportService kết nối cơ sở dữ liệu PostgreSQL thực tế (theo
  * NFR-MAINT-01 & WBS Task 4.3.1).
@@ -116,6 +118,64 @@ public class ReportServiceImpl implements ReportService {
         return reports.stream()
                 .map(r -> mapToReportResponse(r, votesMap.get(r.getId())))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ReportResponse> getCommunityReports(
+            boolean recent,
+            Pageable pageable
+    ) {
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime recentSince = now.minusHours(24);
+
+        // Chỉ hiển thị báo cáo còn hiệu lực và chưa bị ẩn.
+        List<ReportStatus> statuses = List.of(
+                ReportStatus.PENDING_VERIFY,
+                ReportStatus.ACTIVE
+        );
+
+        // Lấy một trang báo cáo từ database.
+        Page<Report> reportPage = reportRepository.findCommunityReports(
+                statuses,
+                now,
+                recent,
+                recentSince,
+                pageable
+        );
+
+        // Lấy vote của người dùng hiện tại trên các báo cáo trong trang.
+        Long currentUserId = SecurityUtils.getCurrentUserId().orElse(null);
+
+        Map<Long, String> userVotes = Collections.emptyMap();
+
+        if (currentUserId != null && !reportPage.isEmpty()) {
+            List<Long> reportIds = reportPage.getContent()
+                    .stream()
+                    .map(Report::getId)
+                    .toList();
+
+            userVotes = reportVoteRepository
+                    .findByUserIdAndReportIdIn(currentUserId, reportIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            vote -> vote.getReport().getId(),
+                            ReportVote::getVoteType,
+                            (v1, v2) -> v1
+                    ));
+        }
+
+        final Map<Long, String> votesMap = userVotes;
+
+        // Chuyển entity thành DTO và giữ nguyên thông tin phân trang.
+        Page<ReportResponse> responsePage = reportPage.map(
+                report -> mapToReportResponse(
+                        report,
+                        votesMap.get(report.getId())
+                )
+        );
+
+        return PageResponse.of(responsePage);
     }
 
     @Override
@@ -241,17 +301,26 @@ public class ReportServiceImpl implements ReportService {
         voteType = voteType.toUpperCase();
 
         // Kiểm tra vote của user trên report này
-        Optional<ReportVote> existingVoteOpt = reportVoteRepository.findByReportIdAndUserId(report.getId(),
-                currentUser.getId());
+        Optional<ReportVote> existingVoteOpt = reportVoteRepository.findByReportIdAndUserId(
+                report.getId(), currentUser.getId());
+
+        String currentVote = null;
+
         if (existingVoteOpt.isPresent()) {
             ReportVote existingVote = existingVoteOpt.get();
-            if (!existingVote.getVoteType().equalsIgnoreCase(voteType)) {
+
+            if (existingVote.getVoteType().equalsIgnoreCase(voteType)) {
+                // Bấm lại cùng loại vote -> hủy vote
+                reportVoteRepository.delete(existingVote);
+            } else {
+                // Chuyển sang loại vote khác
                 existingVote.setVoteType(voteType);
                 existingVote.setUpdatedAt(OffsetDateTime.now());
                 reportVoteRepository.save(existingVote);
+                currentVote = voteType;
             }
-            // Nếu cùng voteType -> giữ nguyên (Idempotent theo AT-06)
         } else {
+            // Chưa vote -> tạo vote mới
             ReportVote newVote = ReportVote.builder()
                     .report(report)
                     .user(currentUser)
@@ -259,7 +328,9 @@ public class ReportServiceImpl implements ReportService {
                     .createdAt(OffsetDateTime.now())
                     .updatedAt(OffsetDateTime.now())
                     .build();
+
             reportVoteRepository.save(newVote);
+            currentVote = voteType;
         }
 
         // Đếm lại confirm_count và no_longer_count từ report_votes
@@ -310,7 +381,7 @@ public class ReportServiceImpl implements ReportService {
             reportRepository.save(report);
         }
 
-        return mapToReportResponse(report, voteType);
+        return mapToReportResponse(report, currentVote);
     }
 
     @Override
