@@ -69,3 +69,24 @@ Database cần giữ các khóa nghiệp vụ: `request_id` unique để retry k
 src/
 ├── main/
 └── test/
+```
+
+## Kiểm thử PostgreSQL độc lập cho Phase 3
+
+Khởi tạo PostgreSQL tạm chỉ lắng nghe ở `127.0.0.1`, trên cổng riêng. Tạo database
+`cityguard_phase3_test` và áp dụng lần lượt migration V1, V2 và V3 từ thư mục
+`database/migrations`. Bộ test dùng tài khoản `postgres` của cụm test.
+Đặt `CITYGUARD_PHASE3_TEST_PG_PORT` thành cổng của cụm tạm, rồi chạy từ thư mục backend:
+
+```powershell
+./mvnw.cmd '-Dtest=AdminReportPostgresIntegrationTest' test
+```
+
+Test chỉ chạy khi có biến cổng riêng. Nó gọi PATCH qua MockMvc với backend thật,
+đọc lại dữ liệu sau commit và dùng trigger tạm để gây lỗi audit log ngay lúc commit.
+
+## Danh sách đồng bộ khi tích hợp Frontend
+
+- [ ] Xác minh React mock và Backend cùng từ chối `HIDDEN → HIDDEN` với HTTP 400
+  và không tạo audit log. Mock trước đây cho phép gửi lại cùng trạng thái. Bản
+  Frontend cục bộ đã có điều kiện chặn. Cần xác nhận trên phiên bản được tích hợp.

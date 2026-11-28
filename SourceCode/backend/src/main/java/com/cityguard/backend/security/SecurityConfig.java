@@ -39,6 +39,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/health",
             "/api/v1/auth/**",
+            "/api/v1/storage/upload",
+            "/uploads/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**"
@@ -54,8 +56,31 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        // 1. Giữ nguyên các API công khai của TV5
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .anyRequest().authenticated())
+
+                        // 2. Cho phép đăng nhập Admin không cần JWT
+                        .requestMatchers("/api/v1/admin/auth/login").permitAll()
+
+                        // 3. Chỉ ADMIN được quản lý người dùng
+                        .requestMatchers(
+                                "/api/v1/admin/users",
+                                "/api/v1/admin/users/**"
+                        ).hasRole("ADMIN")
+
+                        // 4. Chỉ ADMIN được xem nhật ký quản trị
+                        .requestMatchers(
+                                "/api/v1/admin/logs",
+                                "/api/v1/admin/logs/**"
+                        ).hasRole("ADMIN")
+
+                        // 5. ADMIN và MODERATOR sử dụng API Admin còn lại
+                        .requestMatchers("/api/v1/admin/**")
+                        .hasAnyRole("ADMIN", "MODERATOR")
+
+                        // 6. Các API khác yêu cầu đăng nhập
+                        .anyRequest().authenticated()
+                )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
