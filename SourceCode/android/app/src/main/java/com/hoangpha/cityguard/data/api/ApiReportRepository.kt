@@ -1,5 +1,9 @@
 package com.hoangpha.cityguard.data.api
 
+import android.content.ContentResolver
+import android.database.Cursor
+import android.net.Uri
+import android.provider.OpenableColumns
 
 import com.hoangpha.cityguard.domain.model.Comment
 import com.hoangpha.cityguard.domain.model.IncidentCategory
@@ -10,9 +14,15 @@ import com.hoangpha.cityguard.domain.repository.ReportRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.time.Instant
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.hoangpha.cityguard.domain.repository.MapReportRepository
 
-class ApiReportRepository(private val api: ReportApi) : ReportRepository,MapReportRepository {
+class ApiReportRepository(
+    private val api: ReportApi,
+    private val contentResolver: ContentResolver? = null
+) : ReportRepository,MapReportRepository {
     private val supportedMapTypes = setOf(
         "TRAFFIC_JAM",
         "FLOOD",
@@ -58,10 +68,38 @@ class ApiReportRepository(private val api: ReportApi) : ReportRepository,MapRepo
         emit(if (response.code() == 404) null else toDomain(requireApiData(response)))
     }
 
-    override suspend fun createReport(newReport: NewReport): Report = toDomain(requireReport(api.create(CreateReportDto(
-        newReport.requestId, newReport.category.toApiType(), newReport.description, newReport.address,
-        newReport.latitude, newReport.longitude, newReport.imageUri
-    ))))
+    override suspend fun createReport(newReport: NewReport): Report {
+        val imageUrl = newReport.imageUri?.takeIf { it.isNotBlank() }?.let { uploadImage(it) }
+        return toDomain(requireReport(api.create(CreateReportDto(
+            newReport.requestId, newReport.category.toApiType(), newReport.description, newReport.address,
+            newReport.latitude, newReport.longitude, imageUrl
+        ))))
+    }
+
+    private suspend fun uploadImage(uriString: String): String {
+        val resolver = contentResolver ?: error("Image upload is unavailable")
+        val uri = Uri.parse(uriString)
+        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") }
+            ?: error("Tệp đính kèm không phải hình ảnh")
+        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Không đọc được ảnh đính kèm")
+        if (bytes.size >= 5 * 1024 * 1024) error("Ảnh phải nhỏ hơn 5 MB")
+        val filename = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            .useDisplayName() ?: "report-image.jpg"
+        val body = bytes.toRequestBody(mimeType.toMediaType())
+        val part = MultipartBody.Part.createFormData("file", filename, body)
+        val uploaded = api.uploadImage(part)
+        if (!uploaded.isSuccessful) error("Upload ảnh thất bại: HTTP ${uploaded.code()}")
+        val data = uploaded.body()?.data ?: error("Upload ảnh không trả về dữ liệu")
+        return data.imageUrl ?: data.url ?: error("Upload ảnh không trả về URL")
+    }
+
+    private fun Cursor?.useDisplayName(): String? {
+        this ?: return null
+        return use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)) else null
+        }
+    }
 
     override suspend fun vote(reportId: String, type: VoteType) { requireReport(api.vote(reportId, VoteDto(type.name))) }
     override suspend fun addComment(reportId: String, content: String) { requireReport(api.comment(reportId, CommentRequestDto(content))) }

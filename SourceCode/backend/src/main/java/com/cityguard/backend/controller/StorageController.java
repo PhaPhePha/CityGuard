@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -69,7 +70,10 @@ public class StorageController {
             throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Không thể lưu tệp hình ảnh, vui lòng thử lại");
         }
 
-        String fileUrl = "http://localhost:8080/uploads/" + fileName;
+        String fileUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/uploads/")
+                .path(fileName)
+                .toUriString();
         return ResponseEntity.ok(ApiResponse.success("Tải ảnh lên thành công", Map.of(
                 "url", fileUrl,
                 "imageUrl", fileUrl

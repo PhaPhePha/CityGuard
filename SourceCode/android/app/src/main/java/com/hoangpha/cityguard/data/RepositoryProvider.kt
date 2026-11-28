@@ -10,7 +10,9 @@ import com.hoangpha.cityguard.domain.repository.MapReportRepository
 object RepositoryProvider {
     @Volatile private var current: ReportRepository = FakeReportRepository
     val reportRepository: ReportRepository get() = current
-    fun initialize(sessionManager: SessionManager) { current = ApiReportRepository(ApiClient.reports(sessionManager)) }
+    fun initialize(sessionManager: SessionManager, contentResolver: android.content.ContentResolver) {
+        current = ApiReportRepository(ApiClient.reports(sessionManager), contentResolver)
+    }
 
     val mapReportRepository: MapReportRepository
         get() = checkNotNull(current as? MapReportRepository) {

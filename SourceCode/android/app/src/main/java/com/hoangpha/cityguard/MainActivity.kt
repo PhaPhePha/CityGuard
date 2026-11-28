@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestLocalBackendPermissionIfNeeded()
         val sessionManager = SessionManager(applicationContext)
-        RepositoryProvider.initialize(sessionManager)
+        RepositoryProvider.initialize(sessionManager, contentResolver)
         setContent {
             CityGuardAppTheme {
                 val auth: AuthViewModel = viewModel()
