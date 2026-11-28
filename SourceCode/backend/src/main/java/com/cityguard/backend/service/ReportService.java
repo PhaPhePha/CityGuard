@@ -15,6 +15,7 @@ public interface ReportService {
     List<ReportResponse> getReports(String bbox, ReportType type, ReportStatus status, String sort, Double userLat, Double userLng);
     ReportResponse getReportById(String id);
     ReportResponse create(CreateReportRequest request);
+    void delete(String id);
     ReportResponse vote(String id, VoteRequest request);
     List<ReportResponse> getMyReports();
 }

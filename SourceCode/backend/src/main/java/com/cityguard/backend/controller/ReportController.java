@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -102,6 +103,13 @@ public class ReportController {
         ReportResponse response = reportService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo báo cáo thành công", response));
+    }
+
+    @DeleteMapping("/api/v1/reports/{id}")
+    @Operation(summary = "Xóa báo cáo của tôi", description = "Chỉ người tạo báo cáo mới được phép xóa báo cáo")
+    public ResponseEntity<ApiResponse<Void>> deleteReport(@PathVariable String id) {
+        reportService.delete(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa báo cáo thành công", null));
     }
 
     @RequestMapping(value = "/api/v1/reports/{id}/vote", method = {RequestMethod.PUT, RequestMethod.POST})

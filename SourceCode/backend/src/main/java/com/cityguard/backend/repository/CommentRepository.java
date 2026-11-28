@@ -16,6 +16,7 @@ import java.util.UUID;
 
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
+    void deleteByReportId(Long reportId);
     List<Comment> findByReportIdAndIsHiddenFalseOrderByCreatedAtDesc(Long reportId);
 
     @Query("SELECT c FROM Comment c LEFT JOIN FETCH c.user WHERE c.report.id = :reportId AND c.isHidden = false AND c.deletedAt IS NULL ORDER BY c.createdAt DESC, c.id DESC")

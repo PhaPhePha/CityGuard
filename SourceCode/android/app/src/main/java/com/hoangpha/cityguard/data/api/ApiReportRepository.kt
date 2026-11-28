@@ -76,6 +76,11 @@ class ApiReportRepository(
         ))))
     }
 
+    override suspend fun deleteReport(reportId: String) {
+        val response = api.delete(reportId)
+        if (!response.isSuccessful) error("Không thể xóa báo cáo: HTTP ${response.code()}")
+    }
+
     private suspend fun uploadImage(uriString: String): String {
         val resolver = contentResolver ?: error("Image upload is unavailable")
         val uri = Uri.parse(uriString)

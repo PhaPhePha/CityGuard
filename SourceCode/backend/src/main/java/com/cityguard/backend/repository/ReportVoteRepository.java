@@ -13,4 +13,5 @@ public interface ReportVoteRepository extends JpaRepository<ReportVote, Long> {
     long countByReportIdAndVoteType(Long reportId, String voteType);
     long countByUserIdAndVoteType(Long userId, String voteType);
     List<ReportVote> findByUserIdAndReportIdIn(Long userId, List<Long> reportIds);
+    void deleteByReportId(Long reportId);
 }

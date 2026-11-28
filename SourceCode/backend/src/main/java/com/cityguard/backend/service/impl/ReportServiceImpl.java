@@ -172,6 +172,22 @@ public class ReportServiceImpl implements ReportService {
         return processCreateReport(currentUser, request);
     }
 
+    @Override
+    @Transactional
+    public void delete(String id) {
+        User currentUser = SecurityUtils.getCurrentUser()
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "Vui lòng đăng nhập để xóa báo cáo"));
+        Report report = findReportByIdOrPublicId(id);
+        if (report.getUser() == null || !currentUser.getId().equals(report.getUser().getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "Chỉ người tạo báo cáo mới được xóa báo cáo này");
+        }
+        Long reportId = report.getId();
+        commentRepository.deleteByReportId(reportId);
+        reportVoteRepository.deleteByReportId(reportId);
+        reportMetricsRepository.deleteById(reportId);
+        reportRepository.delete(report);
+    }
+
     private ReportResponse processCreateReport(User currentUser, CreateReportRequest request) {
         String categoryCode = request.getType() != null ? request.getType().name() : null;
         if (categoryCode == null || categoryCode.isBlank()) {

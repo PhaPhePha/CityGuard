@@ -9,9 +9,9 @@
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/logo_cityguard"
+        android:icon="@drawable/ic_cityguard_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/logo_cityguard"
+        android:roundIcon="@drawable/ic_cityguard_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.CityGuard">
         <activity

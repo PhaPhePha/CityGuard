@@ -2,6 +2,7 @@ package com.hoangpha.cityguard.data.api
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -29,6 +30,7 @@ interface ReportApi {
     @GET("api/v1/reports/{id}") suspend fun detail(@Path("id") id: String): Response<ApiResponse<ReportDto>>
     @GET("api/v1/me/reports") suspend fun mine(@Query("page") page: Int = 0, @Query("size") size: Int = 50): Response<ApiResponse<PageDto<ReportDto>>>
     @POST("api/v1/reports") suspend fun create(@Body request: CreateReportDto): Response<ApiResponse<ReportDto>>
+    @DELETE("api/v1/reports/{id}") suspend fun delete(@Path("id") id: String): Response<ApiResponse<Unit>>
     @POST("api/v1/reports/{id}/vote") suspend fun vote(@Path("id") id: String, @Body request: VoteDto): Response<ApiResponse<ReportDto>>
     @POST("api/v1/reports/{id}/comments") suspend fun comment(@Path("id") id: String, @Body request: CommentRequestDto): Response<ApiResponse<ReportDto>>
 }

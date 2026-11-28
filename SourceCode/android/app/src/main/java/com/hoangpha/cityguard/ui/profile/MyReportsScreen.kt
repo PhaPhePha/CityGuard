@@ -44,7 +44,7 @@ fun MyReportsScreen(navController: NavController, viewModel: MyReportsViewModel 
         val current = viewModel.state.value
         if (!current.loading && !current.loadingMore) viewModel.refresh()
     }
-    MyReportsContent(navController, state, viewModel::selectStatus, viewModel::retry, viewModel::loadMore)
+    MyReportsContent(navController, state, viewModel::selectStatus, viewModel::retry, viewModel::loadMore, viewModel::delete)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,7 +54,8 @@ internal fun MyReportsContent(
     state: MyReportsUiState,
     onStatusSelected: (String?) -> Unit,
     onRetry: () -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onDelete: (ReportDto) -> Unit = {}
 ) {
     val tabs = listOf("Tất cả", "Đang hoạt động", "Đã hết hạn")
     val statuses = listOf(null, "ACTIVE", "EXPIRED")
@@ -122,7 +123,7 @@ internal fun MyReportsContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(state.reports, key = { it.id }) { report ->
-                        MyReportCard(report) {
+                        MyReportCard(report, deleting = state.deletingId == report.id, onDelete = { onDelete(report) }) {
                             navController.navigate("report_detail/${Uri.encode(report.id)}") { launchSingleTop = true }
                         }
                     }
@@ -147,7 +148,7 @@ internal fun MyReportsContent(
 }
 
 @Composable
-private fun MyReportCard(report: ReportDto, onClick: () -> Unit) {
+private fun MyReportCard(report: ReportDto, deleting: Boolean = false, onDelete: () -> Unit = {}, onClick: () -> Unit) {
     val incidentColor = if (report.type == "FLOOD") Color(0xFF29B6F6) else CityGuardRed
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -190,6 +191,13 @@ private fun MyReportCard(report: ReportDto, onClick: () -> Unit) {
                     Text(" ${report.confirmCount}  ", fontSize = 11.sp, color = Color.Gray)
                     Icon(Icons.Default.ThumbDown, contentDescription = "Lượt báo không còn", Modifier.size(12.dp), tint = CityGuardRed)
                     Text(" ${report.noLongerCount}", fontSize = 11.sp, color = Color.Gray)
+                }
+                TextButton(
+                    onClick = onDelete,
+                    enabled = !deleting,
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                ) {
+                    Text(if (deleting) "Đang xóa..." else "Xóa báo cáo", color = CityGuardRed, fontSize = 13.sp)
                 }
             }
         }

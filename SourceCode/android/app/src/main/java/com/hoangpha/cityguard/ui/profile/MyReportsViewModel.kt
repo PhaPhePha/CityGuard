@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
 data class MyReportsUiState(
     val loading: Boolean = true, val loadingMore: Boolean = false,
     val reports: List<ReportDto> = emptyList(), val status: String? = null,
-    val nextPage: Int = 0, val hasNext: Boolean = false, val error: String? = null
+    val nextPage: Int = 0, val hasNext: Boolean = false, val error: String? = null,
+    val deletingId: String? = null
 )
 class MyReportsViewModel @JvmOverloads constructor(
     // Android chỉ ghép trang/distinct id; bảo vệ quyền sở hữu phải được test bằng hai JWT thật.
@@ -44,6 +45,21 @@ class MyReportsViewModel @JvmOverloads constructor(
     }
     fun retry() {
         if (_state.value.reports.isEmpty()) refresh() else loadMore()
+    }
+    fun delete(report: ReportDto) {
+        if (_state.value.deletingId != null) return
+        _state.value = _state.value.copy(deletingId = report.id, error = null)
+        viewModelScope.launch {
+            try {
+                requireApiData(ApiClient.reports(SessionManager(getApplication())).delete(report.id))
+                _state.value = _state.value.copy(
+                    reports = _state.value.reports.filterNot { it.id == report.id }, deletingId = null
+                )
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                _state.value = _state.value.copy(deletingId = null, error = e.userMessage())
+            }
+        }
     }
     // response của /me/reports có data.items; distinctBy(id) ngăn card bị lặp khi dữ liệu giữa hai trang thay đổi.
     private fun fetch(page: Int, status: String?, append: Boolean) {

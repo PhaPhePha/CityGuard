@@ -115,6 +115,7 @@ fun CreateReportRoute(
     val locationViewModel: LocationViewModel = viewModel(
         factory = remember(locationProvider) { LocationViewModel.factory(locationProvider) }
     )
+    val isLocating = locationViewModel.uiState == LocationUiState.Loading
     var showPermissionExplanation by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -131,18 +132,24 @@ fun CreateReportRoute(
             is LocationResult.Success -> {
                 val address = withContext(Dispatchers.IO) {
                     runCatching {
-                        Geocoder(context, Locale.getDefault())
+                        Geocoder(context, Locale("vi", "VN"))
                             .getFromLocation(result.point.latitude, result.point.longitude, 1)
                             ?.firstOrNull()
                             ?.getAddressLine(0)
+                            ?.trim()
+                            ?.takeIf { it.isNotBlank() }
                     }.getOrNull()
                 }
+                val displayAddress = address ?: "%.6f, %.6f".format(
+                    result.point.latitude,
+                    result.point.longitude
+                )
                 viewModel.onLocationResolved(
                     result.point.latitude,
                     result.point.longitude,
                     result.approximate,
                     result.fromCache,
-                    address
+                    displayAddress
                 )
             }
             LocationResult.PermissionDenied -> viewModel.onLocationError("Cần cấp quyền vị trí để gắn tọa độ cho báo cáo")
@@ -180,6 +187,7 @@ fun CreateReportRoute(
 
     CreateReportScreen(
         state = state,
+        locationLoading = isLocating,
         onCategorySelected = viewModel::onCategorySelected,
         onDescriptionChanged = viewModel::onDescriptionChanged,
         onAddressChanged = viewModel::onAddressChanged,
@@ -237,6 +245,7 @@ fun CreateReportScreen(
     onAddressChanged: (String) -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit,
+    locationLoading: Boolean = false,
     onUseCurrentLocation: () -> Unit = {},
     onPickImage: () -> Unit = {},
     onTakePhoto: () -> Unit = {},
@@ -350,12 +359,18 @@ fun CreateReportScreen(
             )
             OutlinedButton(
                 onClick = onUseCurrentLocation,
-                enabled = !state.isSubmitting,
+                enabled = !state.isSubmitting && !locationLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.LocationOn, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (state.latitude != null) "Lấy lại vị trí hiện tại" else "Dùng vị trí hiện tại")
+                Text(
+                    when {
+                        locationLoading -> "Đang lấy vị trí..."
+                        state.latitude != null -> "Lấy lại vị trí hiện tại"
+                        else -> "Dùng vị trí hiện tại"
+                    }
+                )
             }
             if (state.latitude != null && state.longitude != null) {
                 Text(

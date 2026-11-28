@@ -72,6 +72,20 @@ class ReportDetailViewModel @JvmOverloads constructor(
         }
     }
 
+    fun delete(onDeleted: () -> Unit) {
+        if (_uiState.value.isDeleting) return
+        _uiState.update { it.copy(isDeleting = true, errorMessage = null) }
+        viewModelScope.launch {
+            try {
+                repository.deleteReport(reportId)
+                onDeleted()
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                _uiState.update { it.copy(isDeleting = false, errorMessage = "Xóa báo cáo thất bại. Vui lòng thử lại.") }
+            }
+        }
+    }
+
     fun onCommentChanged(text: String) {
         if (text.length <= ReportDetailUiState.MAX_COMMENT_LENGTH) {
             _uiState.update { it.copy(commentText = text, commentError = null) }

@@ -26,6 +26,7 @@ interface ReportRepository {
     fun observeReport(id: String): Flow<Report?>
 
     suspend fun createReport(newReport: NewReport): Report
+    suspend fun deleteReport(reportId: String)
     suspend fun vote(reportId: String, type: VoteType)
     suspend fun addComment(reportId: String, content: String)
     suspend fun myReports(): List<Report> = reports.first()

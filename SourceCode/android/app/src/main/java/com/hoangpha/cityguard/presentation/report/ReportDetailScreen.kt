@@ -44,6 +44,7 @@ import androidx.compose.material3.TextButton
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,10 @@ import androidx.compose.ui.unit.sp
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.hoangpha.cityguard.data.local.SessionManager
 
 import coil.compose.AsyncImage
 
@@ -79,6 +84,10 @@ fun ReportDetailRoute(
     viewModel: ReportDetailViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val sessionManager = remember(context.applicationContext) { SessionManager(context.applicationContext) }
+    val session by sessionManager.session.collectAsStateWithLifecycle(initialValue = null)
+    val isOwner = state.report?.creatorId != null && state.report?.creatorId == session?.userId
     ReportDetailScreen(
         state = state,
         onBack = onBack,
@@ -86,7 +95,9 @@ fun ReportDetailRoute(
         onCommentChanged = viewModel::onCommentChanged,
         onSendComment = viewModel::sendComment,
         // TV2 tích hợp TV4: nối nút retry của trạng thái lỗi, giữ màn detail hiện có.
-        onRetry = viewModel::load
+        onRetry = viewModel::load,
+        isOwner = isOwner,
+        onDelete = { viewModel.delete(onBack) }
     )
 }
 
@@ -99,9 +110,12 @@ fun ReportDetailScreen(
     onCommentChanged: (String) -> Unit,
     onSendComment: () -> Unit,
     modifier: Modifier = Modifier,
-    onRetry: () -> Unit = {} // TV2: default giữ tương thích các preview/caller cũ của TV4.
+    onRetry: () -> Unit = {}, // TV2: default giữ tương thích các preview/caller cũ của TV4.
+    isOwner: Boolean = false,
+    onDelete: () -> Unit = {}
 ) {
     val report = state.report
+    var showDeleteConfirm by androidx.compose.runtime.remember { mutableStateOf(false) }
 
     when {
         state.isLoading -> {
@@ -239,6 +253,14 @@ fun ReportDetailScreen(
                             Text(it, color = MaterialTheme.colorScheme.error)
                         }
 
+                        if (isOwner) {
+                            OutlinedButton(
+                                onClick = { showDeleteConfirm = true },
+                                enabled = !state.isDeleting,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text(if (state.isDeleting) "Đang xóa..." else "Xóa báo cáo", color = CityGuardRed) }
+                        }
+
                         Spacer(Modifier.height(16.dp))
                         Text("Bình luận cộng đồng", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
@@ -288,6 +310,17 @@ fun ReportDetailScreen(
                 }
             }
         }
+    }
+    if (showDeleteConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Xóa báo cáo?") },
+            text = { Text("Báo cáo sẽ bị xóa cùng các lượt xác nhận và bình luận. Không thể hoàn tác.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Xóa", color = CityGuardRed) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Hủy") } }
+        )
     }
 }
 

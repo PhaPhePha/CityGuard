@@ -55,6 +55,10 @@ object FakeReportRepository : ReportRepository {
         return report
     }
 
+    override suspend fun deleteReport(reportId: String) {
+        state.update { list -> list.filterNot { it.id == reportId } }
+    }
+
     override suspend fun vote(reportId: String, type: VoteType) {
         state.update { list ->
             list.map { r ->

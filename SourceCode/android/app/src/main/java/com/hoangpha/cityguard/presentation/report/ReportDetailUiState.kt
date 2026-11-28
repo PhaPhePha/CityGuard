@@ -10,6 +10,7 @@ data class ReportDetailUiState(
     val commentError: String? = null,
     val isVoting: Boolean = false,
     val isSendingComment: Boolean = false,
+    val isDeleting: Boolean = false,
     val errorMessage: String? = null
 ) {
     companion object {
