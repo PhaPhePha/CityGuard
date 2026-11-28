@@ -89,6 +89,9 @@ import com.hoangpha.cityguard.presentation.map.LocationViewModel
 import com.hoangpha.cityguard.presentation.map.components.markerIconRes
 import com.hoangpha.cityguard.ui.theme.CityGuardAppTheme
 import com.hoangpha.cityguard.ui.theme.CityGuardYellow
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.platform.LocalDensity
 // "Route": nối ViewModel với màn hình. Chỗ duy nhất biết ViewModel tồn tại.
 @Composable
 fun CreateReportRoute(
@@ -228,10 +231,22 @@ fun CreateReportScreen(
     onRemoveImage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize().background(CityGuardYellow)) {
+    var showPhotoDialog by rememberSaveable { mutableStateOf(false) }
+
+    // NavHost đã chừa sẵn 80dp cho thanh điều hướng, nên chỉ nâng thêm phần bàn phím cao hơn 80dp
+    val density = LocalDensity.current
+    val imeBottom = with(density) { WindowInsets.ime.getBottom(density).toDp() }
+    val keyboardLift = maxOf(0.dp, imeBottom - 80.dp)
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(CityGuardYellow)
+            .padding(bottom = keyboardLift)
+    ) {
         // Phần đầu nền vàng: nút quay lại và tiêu đề
         Row(
-            modifier = Modifier.statusBarsPadding().padding(start = 8.dp, top = 8.dp, bottom = 12.dp),
+            modifier = Modifier.statusBarsPadding().padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack, enabled = !state.isSubmitting) {
@@ -249,156 +264,171 @@ fun CreateReportScreen(
                 fontSize = 22.sp
             )
         }
+
         // Tờ nội dung kem, bo tròn hai góc trên
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(SheetBackground, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Ô "Thêm ảnh" lớn: bấm vào để chụp ảnh. Đã có ảnh thì hiện ảnh trong ô.
-            val imageUri = state.imageUri
-            Box(
+            // Vùng cuộn: chỉ cao đúng bằng nội dung; bàn phím mở thì tự thu nhỏ lại và cuộn
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFE8E2D0))
-                    .border(1.dp, Color(0xFFD6CFB8), RoundedCornerShape(16.dp))
-                    .clickable(enabled = !state.isSubmitting, onClick = onTakePhoto),
-                contentAlignment = Alignment.Center
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (imageUri != null) {
-                    AsyncImage(
-                        model = imageUri,
-                        contentDescription = "Ảnh sự cố",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            modifier = Modifier.size(44.dp)
+                // Ô "Thêm ảnh": bấm để chọn chụp / thư viện. Đã có ảnh thì hiện ảnh trong ô.
+                val imageUri = state.imageUri
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(96.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFE8E2D0))
+                        .border(1.dp, Color(0xFFD6CFB8), RoundedCornerShape(16.dp))
+                        .clickable(enabled = !state.isSubmitting) { showPhotoDialog = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUri != null) {
+                        AsyncImage(
+                            model = imageUri,
+                            contentDescription = "Ảnh sự cố",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
-                        Spacer(Modifier.height(6.dp))
-                        Text("Thêm ảnh", fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text("Thêm ảnh", fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                        }
                     }
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(
-                    onClick = onPickImage,
+
+                Text("Loại sự cố", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                CategoryGrid(
+                    selected = state.category,
                     enabled = !state.isSubmitting,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Black)
-                ) { Text("Chọn từ thư viện") }
-                if (imageUri != null) {
-                    TextButton(
-                        onClick = onRemoveImage,
-                        enabled = !state.isSubmitting,
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Black)
-                    ) { Text("Xóa ảnh") }
+                    onSelect = onCategorySelected
+                )
+
+                Text("Mô tả", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = state.description,
+                    onValueChange = onDescriptionChanged,
+                    placeholder = { Text("Mô tả về sự cố...") },
+                    supportingText = {
+                        Text(
+                            "${state.description.length}/${CreateReportUiState.MAX_DESCRIPTION_LENGTH}",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End
+                        )
+                    },
+                    enabled = !state.isSubmitting,
+                    minLines = 2,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        disabledContainerColor = Color.White
+                    )
+                )
+
+                // Vị trí một hàng như prototype: bấm biểu tượng ghim để lấy GPS, hoặc tự nhập địa chỉ
+                Text("Vị trí hiện tại", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                val hasGps = state.latitude != null && state.longitude != null
+                val gpsHint: (@Composable () -> Unit)? = if (hasGps) {
+                    { Text("Đã gắn GPS" + if (state.locationApproximate) " (xấp xỉ)" else "") }
+                } else {
+                    null
+                }
+                OutlinedTextField(
+                    value = state.address,
+                    onValueChange = onAddressChanged,
+                    placeholder = { Text("Nhập vị trí sự cố") },
+                    leadingIcon = {
+                        IconButton(onClick = onUseCurrentLocation, enabled = !state.isSubmitting) {
+                            Icon(Icons.Default.LocationOn, contentDescription = "Dùng vị trí hiện tại")
+                        }
+                    },
+                    supportingText = gpsHint,
+                    singleLine = true,
+                    enabled = !state.isSubmitting,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        disabledContainerColor = Color.White
+                    )
+                )
+            }
+
+            // Phần cố định: báo lỗi + nút Gửi. Luôn nằm ngay dưới form, và trên bàn phím khi bàn phím mở.
+            Column(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                state.errorMessage?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+                Button(
+                    onClick = onSubmit,
+                    enabled = !state.isSubmitting,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CityGuardYellow,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text(if (state.isSubmitting) "Đang gửi..." else "Gửi báo cáo", fontWeight = FontWeight.Bold)
                 }
             }
-
-            Text("Loại sự cố", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            CategoryGrid(
-                selected = state.category,
-                enabled = !state.isSubmitting,
-                onSelect = onCategorySelected
-            )
-
-            Text("Mô tả", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(
-                value = state.description,
-                onValueChange = onDescriptionChanged,
-                placeholder = { Text("Mô tả về sự cố...") },
-                supportingText = {
-                    Text(
-                        "${state.description.length}/${CreateReportUiState.MAX_DESCRIPTION_LENGTH}",
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.End
-                    )
-                },
-                enabled = !state.isSubmitting,
-                minLines = 3,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    disabledContainerColor = Color.White
-                )
-            )
-            OutlinedButton(
-                onClick = onUseCurrentLocation,
-                enabled = !state.isSubmitting,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.LocationOn, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (state.latitude != null) "Lấy lại vị trí hiện tại" else "Dùng vị trí hiện tại")
-            }
-            if (state.latitude != null && state.longitude != null) {
-                Text(
-                    text = "Đã gắn GPS: %.6f, %.6f%s".format(
-                        state.latitude,
-                        state.longitude,
-                        if (state.locationApproximate) " (xấp xỉ)" else ""
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF4B4B4B)
-                )
-            }
-
-            Text("Vị trí hiện tại", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(
-                value = state.address,
-                onValueChange = onAddressChanged,
-                placeholder = { Text("Nhập vị trí sự cố") },
-                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
-                singleLine = true,
-                enabled = !state.isSubmitting,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    disabledContainerColor = Color.White
-                )
-            )
-
-            state.errorMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
-
-            Button(
-                onClick = onSubmit,
-                enabled = !state.isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = CityGuardYellow,
-                    contentColor = Color.Black
-                )
-            ) {
-                Text(if (state.isSubmitting) "Đang gửi..." else "Gửi báo cáo", fontWeight = FontWeight.Bold)
-            }
-            Spacer(Modifier.height(80.dp))   // chừa chỗ cho thanh điều hướng dưới
         }
     }
+
+    if (showPhotoDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoDialog = false },
+            title = { Text("Thêm ảnh sự cố") },
+            text = {
+                Column {
+                    TextButton(onClick = { showPhotoDialog = false; onTakePhoto() }) { Text("Chụp ảnh") }
+                    TextButton(onClick = { showPhotoDialog = false; onPickImage() }) { Text("Chọn từ thư viện") }
+                    if (state.imageUri != null) {
+                        TextButton(onClick = { showPhotoDialog = false; onRemoveImage() }) { Text("Xóa ảnh") }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showPhotoDialog = false }) { Text("Hủy") } }
+        )
+    }
 }
-//2x2 các loại sự cố, mỗi ô có icon và tên, giống prototype
+
+// 2x2 các loại sự cố, mỗi ô có icon và tên. Thứ tự theo prototype.
 @Composable
 private fun CategoryGrid(
     selected: IncidentCategory?,
     enabled: Boolean,
     onSelect: (IncidentCategory) -> Unit
 ) {
+    // Kẹt xe, Đường hư / Có vật cản, Ngập nước (không đổi thứ tự enum vì Map còn dùng)
+    val categories = listOf(
+        IncidentCategory.TRAFFIC_JAM,
+        IncidentCategory.ROAD_DAMAGE,
+        IncidentCategory.ROAD_OBSTRUCTION,
+        IncidentCategory.FLOODING
+    )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        IncidentCategory.entries.chunked(2).forEach { rowItems ->
+        categories.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -417,15 +447,15 @@ private fun CategoryGrid(
                         )
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Image(
                                 painter = painterResource(id = category.markerIconRes()),
                                 contentDescription = category.displayName,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(32.dp)
                             )
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(4.dp))
                             Text(
                                 category.displayName,
                                 fontSize = 13.sp,
